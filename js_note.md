@@ -333,6 +333,324 @@ null 返回的是"object"。这是因为特殊值 null 被认为是一个对空�
 
 
 
+##### 2.Undefined 类型
+
+Undefined 类型只有一个值，就是特殊值 undefined。当使用 var 或 let 声明了变量但没有初始
+
+化时，就相当于给变量赋予了 undefined 值
+
+**注意**
+
+​		**一般来说，永远不用显式地给某个变量设置 undefined 值。字面值 undefined**
+
+**主要用于比较，而且在 ECMA-262 第 3 版之前是不存在的。增加这个特殊值的目的就是为**
+
+**了正式明确空对象指针（null）和未初始化变量的区别。**
+
+
+
+​		**即使未初始化的变量会被自动赋予 undefined 值，但我们仍然建议在声明变量的同时进行初始化。这样，当 typeof 返回"undefined"时，你就会知道那是因为给定的变量尚未声明，而不是声明了但未初始化。**
+
+
+
+##### 3.Null 类型
+
+null 值表示一个空对象指针，这也是给
+
+typeof 传一个 null 会返回"object"的原因
+
+
+
+
+
+##### 4.Boolean 类型
+
+Boolean（布尔值）类型是 ECMAScript 中使用最频繁的类型之一，有两个字面值：true 和 false。
+
+这两个布尔值不同于数值，因此 true 不等于 1，false 不等于 0。
+
+
+
+**注意**：布尔值字面值量 true 和 false 是区分大小写的，因此 True 和 False（及其他大小混写形式）是有效的标识符，但不是布尔值。
+
+
+
+不同类型与布尔值之间的转换规则。
+
+```
+数据类型 			转换为 true的值 		转换为false的值
+
+Boolean				true 				false
+
+String 				非空字符串 			""（空字符串）
+
+Number 			非零数值（包括无穷值） 	0、NaN（参见后面的相关内容）
+
+Object 				任意对象 				null
+
+Undefined 			N/A（不存在） 		undefined
+```
+
+像 if 等流控制语句会自动执行其他类型值到布尔值的转换
+
+
+
+##### 5.Number 类型
+
+Number 类型使用 IEEE 754 格式表示整数和浮点值（在某些语言中也叫双精度值）。
+
+​		八进制字面量在严格模式下是无效的，会导致 JavaScript 引擎抛出语法错误。要创建十六进制，要在数值前加上 0x（区分大小写）。
+
+​		**使用八进制和十六进制格式创建的数值在所有数学操作中都被视为十进制数值。**
+
+
+
+###### （1）浮点值
+
+浮点值数值中必须包含小数点，小数点后必须至少有一个数字。浮点值使用的内存空间是存储整数值的两倍。
+
+​		对于非常大或非常小的数值，浮点值可以用科学记数法来表示。ECMAScript 中科学记数法的格式要求是一个数（整数或浮点数）后跟一个大写或小写的字母 e，再加上一个要乘的 10 的多少次幂。
+
+```
+let floatNum = 3.125e7; // 等于 31250000
+
+0.000 000 3 会被转换为 3e-7
+```
+
+**注意**
+
+​		**之所以存在这种舍入错误，是因为使用了 IEEE 754 数值，这种错误并非 ECMAScript**
+
+**所独有。其他使用相同格式的语言也有这个问题。**
+
+
+
+###### （2）值的范围
+
+最小的值保存在Number.MIN_VALUE 中。最大数值保存在Number.MAX_VALUE 中
+
+​		任何无法表示的负数以-Infinity（负无穷大）表示，任何无法表示的正数以 Infinity（正
+
+无穷大）表示。
+
+​		要确定一个值是不是有限大（即介于 JavaScript 能表示的最小值和最大值之间），可以使用 isFinite()函数
+
+```
+let result = Number.MAX_VALUE + Number.MAX_VALUE; 
+console.log(isFinite(result)); // false
+```
+
+**注意**
+
+​		使用 Number.NEGATIVE_INFINITY（包含 -Infinity ） 和 Number.POSITIVE_INFINITY （包含 Infinity  ）也可以获取正、负 Infinity。
+
+
+
+###### （3）NaN
+
+特殊值NaN，意思是 “ 不是数值 ”（Not a Number）。
+
+在 ECMAScript 中，0、+0 或0 相除会返回 NaN：
+
+```
+console.log(0/0); // NaN 
+console.log(-0/+0); // NaN 
+```
+
+如果分子是非 0 值，分母是有符号 0 或无符号 0，则会返回 Infinity 或-Infinity：
+
+```
+console.log(5/0); // Infinity 
+console.log(5/-0); // -Infinity 
+```
+
+​		ECMAScript 提供了 isNaN()函数，判断此参数是否 “ 不是数值 ”
+
+任何不能转换为数值的值都会导致这个函数返回true。举例如下：
+
+```
+console.log(isNaN(NaN)); // true 
+console.log(isNaN(10)); // false，10 是数值
+console.log(isNaN("10")); // false，可以转换为数值 10 
+console.log(isNaN("blue")); // true，不可以转换为数值
+console.log(isNaN(true)); // false，可以转换为数值 1 
+```
+
+
+
+**注意**
+
+​		isNaN（）可以用于测试对象，首先会调用对象的 valueOf（）方法，然后再确定返回的值是否可以转换为数值。不能则调用 toString（）方法，并返回值。
+
+
+
+###### （4）数值转换
+
+可以将非数值转换为数值：Number()、parseInt()和 parseFloat()。
+
+Number()函数基于如下规则执行转换。
+
+```
+布尔值，true 转换为 1，false 转换为 0。 
+数值，直接返回。
+null，返回 0。 
+undefined，返回 NaN。
+```
+
+​		考虑到用 Number()函数转换字符串时相对复杂且有点反常规，通常在需要得到整数时可以优先使
+
+用 parseInt()函数，字符串最前面的空格会被忽略，从第一个非空格字符开始转换。
+
+提供了十六进制参数，那么字符串前面的"0x"可以省掉：
+
+```
+let num1 = parseInt("AF", 16); // 175 
+let num2 = parseInt("AF"); // NaN 
+```
+
+**注意**
+
+​		避免出现错误，要始终传给他第二个参数。
+
+
+
+##### 6.String 类型
+
+​		String（字符串）数据类型表示零或多个 16 位 Unicode 字符序列。字符串可以使用双引号（"）、单引号（'）或反引号（`）标示。
+
+###### （1）字符字面量
+
+字符串数据类型包含一些字符字面量，用于表示非打印字符或有其他用途的字符，如下表所示：
+
+字 面 量 						含 义
+
+------
+
+\n								换行
+
+\t 								制表
+
+\b								退格
+
+\r 								回车
+
+\f 								换页
+
+\\				  			  反斜杠（\）
+
+\'								单引号（'），在字符串以单引号标示时使用，例如'He said, \'hey.\''
+
+\" 								 双引号（"），在字符串以双引号标示时使用，例如"He said, \"hey.\""
+
+\` 								反引号（`），在字符串以反引号标示时使用，例如`He said, \`hey.\``
+
+\x*nn* 						  以十六进制编码 *nn* 表示的字符（其中 *n* 是十六进制数字 0~F），例如\x41 等于"A"
+
+\u*nnnn* 					以十六进制编码 *nnnn* 表示的 Unicode 字符（其中 *n* 是十六进制数字 0~F），例如\u03a3 等								 于希腊字符"Σ"
+
+------
+
+###### （2）字符串的特点
+
+​		ECMAScript 中的字符串是不可变的，一旦创建它的值就不能变了，要修改变量中的字符串值，要先销毁原始的字符串，然后将新的值保存到给变量中。
+
+```
+let lang = "Java"; 
+lang = lang + "Script";
+```
+
+
+
+###### （3）转换为字符串
+
+使用几乎所有的值都有的 toString（）方法，唯一用途返回当前值的字符串等价物。
+
+```
+let age = 11; 
+let ageAsString = age.toString(); // 字符串"11" 
+let found = true; 
+let foundAsString = found.toString(); // 字符串"true" 
+```
+
+toString()方法可见于数值、布尔值、对象和字符串值。
+
+传入参数，可以得到数值的二进制、八进制、十六进制，或其它任何有效的字符串
+
+```
+let num = 10; 
+console.log(num.toString()); // "10" 
+console.log(num.toString(2)); // "1010" 
+console.log(num.toString(8)); // "12" 
+console.log(num.toString(10)); // "10" 
+console.log(num.toString(16)); // "a"
+```
+
+​		不确定一个值是不是 null 或 undefined，可以使用 String()转型函数，它始终会返回表
+
+示相应类型值的字符串。
+
+
+
+###### （4）模板字面量
+
+​		ECMAScript 6 新增了使用模板字面量定义字符串的能力。与使用单引号或双引号不同，模板字面量
+
+保留换行字符，可以跨行定义字符串
+
+```
+let myMultiLineString = 'first line\nsecond line'; 
+let myMultiLineTemplateLiteral = `first line 
+second line`; 
+console.log(myMultiLineString); 
+// first line 
+// second line" 
+console.log(myMultiLineTemplateLiteral); 
+// first line 
+// second line
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
