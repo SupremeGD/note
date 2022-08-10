@@ -717,7 +717,7 @@ for(const rawString of strings.raw){//string为一个字符串数组
 
 
 
-###### （7）Symbol
+##### 7.Symbol
 
 ​		Symbol 是ECMAScript 6 新增的数据类型。符号是原始值，符号实例是唯一、不可变的。
 
@@ -725,7 +725,7 @@ for(const rawString of strings.raw){//string为一个字符串数组
 
 
 
-**1**  **符号的基本用法**
+###### （1）  符号的基本用法
 
 ​		符号需要使用 Symbol（）函数初始化。typeof 操作符对符号返回的是 symbol，符号没有字面量语法。
 
@@ -747,7 +747,7 @@ console.log( c == d )  // false
 
 
 
-**2  使用全局符号注册表**
+###### （2）  使用全局符号注册表
 
 ​		Symbol.for（）不同部分需要共享和重用符号实例。
 
@@ -779,7 +779,7 @@ console.log(Symbol.keyFor(b)); // undefined
 
 
 
-**3  使用符号作为属性**
+###### （3）  使用符号作为属性
 
 ​		凡是可以使用字符串或数值作为属性的地方，都可以使用符号（包括对象字面量属性和Object.defineProperty()/Object.defineProperties()定义的属性）。
 
@@ -787,22 +787,26 @@ console.log(Symbol.keyFor(b)); // undefined
 
 ```
 let s1 = Symbol('foo'), 
- s2 = Symbol('bar'), 
- s3 = Symbol('baz'), 
- s4 = Symbol('qux'); 
+ 	s2 = Symbol('bar'), 
+ 	s3 = Symbol('baz'), 
+ 	s4 = Symbol('qux'); 
 let o = { 
  [s1]: 'foo val' 
 }; 
 // 这样也可以：o[s1] = 'foo val'; 
+
 console.log(o); 
 // {Symbol(foo): foo val} 
+
 Object.defineProperty(o, s2, {value: 'bar val'}); 
 console.log(o); 
 // {Symbol(foo): foo val, Symbol(bar): bar val} 
+
 Object.defineProperties(o, { 
  [s3]: {value: 'baz val'}, 
  [s4]: {value: 'qux val'} 
 }); 
+
 console.log(o); 
 // {Symbol(foo): foo val, Symbol(bar): bar val, 
 // Symbol(baz): baz val, Symbol(qux): qux val}
@@ -810,13 +814,11 @@ console.log(o);
 
 
 
-​		Object.getOwnPropertyNames()返回对象实例的常规属性数组，Object.getOwnProperty-
+​		Object.getOwnPropertyNames()返回对象实例的常规属性数组，
 
-Symbols()返回对象实例的符号属性数组。这两个方法的返回值彼此互斥。Object.getOwnProperty-
+Object.getOwnProperty-Symbols()返回对象实例的符号属性数组。这两个方法的返回值彼此互斥。Object.getOwnProperty-Descriptors()会返回同时包含常规和符号属性描述符的对象。
 
-Descriptors()会返回同时包含常规和符号属性描述符的对象。Reflect.ownKeys()会返回两种类型
-
-的键
+Reflect.ownKeys()会返回两种类型的键
 
 ```
 let s1 = Symbol('foo'), 
@@ -829,13 +831,178 @@ let o = {
 }; 
 console.log(Object.getOwnPropertySymbols(o)); 
 // [Symbol(foo), Symbol(bar)] 
+
 console.log(Object.getOwnPropertyNames(o)); 
 // ["baz", "qux"] 
+
 console.log(Object.getOwnPropertyDescriptors(o)); 
 // {baz: {...}, qux: {...}, Symbol(foo): {...}, Symbol(bar): {...}} 
+
 console.log(Reflect.ownKeys(o)); 
 // ["baz", "qux", Symbol(foo), Symbol(bar)]
 ```
+
+​		符号属性是内存中符号的一个引用直接创建用作属性的符号不会丢失。没有显式的保护属性的引用，需要遍历所有符号属性才能找到对应的属性键。
+
+
+
+###### （4）常用内置符号
+
+​		ECMAScript 6 引入了一批常用内置符号，用于暴露语言内部行为，开发者可以直接访问、重写或模拟这些行为。
+
+​		for-of 循环会在相关对象上使用 Symbol.iterator 属性，可以通过自定义对象上重新定义 Symbol.iterator 的值，来改变 for-of 在迭代该对象时的行为。
+
+​		所有内置符号属性都是不可写、不能枚举、不可配置的。
+
+**注意**
+
+​		**提到 ECMAScript 规范时，经常会引用符号在规范中的名称，前缀为@@。比如，**
+
+**@@iterator 指的就是 Symbol.iterator。**
+
+
+
+###### （5）Symbol.asyncIterator
+
+​		符号作为属性表示 “ 一个方法，返回对象默认的 AsyncIterator，有 for-await-of 语句使用 ”。（这个符号表示实现异步迭代器API 的函数）。
+
+​		由 Symbol.asyncIterator 函数生成的对象应该通过其 next()方法陆续返回Promise 实例。
+
+​		可以调用 next()方法返回，也可以隐式地通过异步生成器函数返回
+
+**注意** 
+
+​		**Symbol.asyncIterator 是 ES2018 规范定义的，因此只有版本非常新的浏览器支持它。**
+
+
+
+###### （6）Symbol.hasInstance
+
+​		instanceof 操作符可以用来确定一个对象实例的原型链上是否有原型。
+
+​		在 ES6 中，instanceof 操作符会使用 Symbol.hasInstance 函数来确定关系。
+
+```
+function Foo() {} 
+let f = new Foo(); 
+console.log(Foo[Symbol.hasInstance](f)); // true
+```
+
+​		属性定义在 Function 的原型上，因此默认在所有函数和类上都可以调用。由于 instanceof
+
+操作符会在原型链上寻找这个属性定义可以在继承的类上通过静态方法重新定义这个函数
+
+```
+class Bar {} 
+class Baz extends Bar { 
+ static [Symbol.hasInstance]() { 
+ return false; 
+ } 
+} 
+let b = new Baz(); 
+console.log(Bar[Symbol.hasInstance](b)); // true 
+console.log(b instanceof Bar); // true 
+console.log(Baz[Symbol.hasInstance](b)); // false 
+console.log(b instanceof Baz); // false
+```
+
+
+
+###### （7）Symbol.isConcatSpreadable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
