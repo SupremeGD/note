@@ -816,7 +816,7 @@ console.log(o);
 
 ​		Object.getOwnPropertyNames()返回对象实例的常规属性数组，
 
-Object.getOwnProperty-Symbols()返回对象实例的符号属性数组。这两个方法的返回值彼此互斥。Object.getOwnProperty-Descriptors()会返回同时包含常规和符号属性描述符的对象。
+Object.getOwnPropertySymbols()返回对象实例的符号属性数组。这两个方法的返回值彼此互斥。Object.getOwnPropertyDescriptors()会返回同时包含常规和符号属性描述符的对象。
 
 Reflect.ownKeys()会返回两种类型的键
 
@@ -866,6 +866,19 @@ console.log(Reflect.ownKeys(o));
 
 ​		符号作为属性表示 “ 一个方法，返回对象默认的 AsyncIterator，有 for-await-of 语句使用 ”。（这个符号表示实现异步迭代器API 的函数）。
 
+​		for-await-of 循环会利用这个函数执行异步迭代操作。循环时，它们会调用以 Symbol.asyncIterator
+
+为键的函数，返回的对象是实现该 API 的 AsyncGenerator。
+
+```
+class Foo { 
+ 	async *[Symbol.asyncIterator]() {} 
+} 
+let f = new Foo(); 
+console.log(f[Symbol.asyncIterator]()); 
+// AsyncGenerator {<suspended>}
+```
+
 ​		由 Symbol.asyncIterator 函数生成的对象应该通过其 next()方法陆续返回Promise 实例。
 
 ​		可以调用 next()方法返回，也可以隐式地通过异步生成器函数返回
@@ -910,27 +923,141 @@ console.log(b instanceof Baz); // false
 
 ###### （7）Symbol.isConcatSpreadable
 
+​		作为属性表示“一个布尔值，如果是 true，则意味着对象应该用 Array.prototype.concat()打平其数组元素”，
+
+​		Array.prototype.concat()方法会根据接收到的对象类型选择如何将一个类数组对象拼接成数组实例。覆盖Symbol.isConcatSpreadable 的值可以修改这个行为。
+
+​		数组对象默认情况下会被打平到已有的数组，false 或假值会导致整个对象被追加到数组末尾。类数组对象默认情况下会被追加到数组末尾，true 或真值会导致这个类数组对象被打平到数组实例。其他不是类数组对象的对象在 Symbol.isConcatSpreadable 被设置为 true 的情况下将被忽略。
+
+```
+let initial = ['foo']; 
+let array = ['bar']; 
+console.log(array[Symbol.isConcatSpreadable]); // undefined 
+console.log(initial.concat(array)); // ['foo', 'bar'] 
+array[Symbol.isConcatSpreadable] = false;
+console.log(initial.concat(array)); // ['foo', Array(1)] 
+
+let arrayLikeObject = { length: 1, 0: 'baz' }; 
+console.log(arrayLikeObject[Symbol.isConcatSpreadable]); // undefined 
+console.log(initial.concat(arrayLikeObject)); // ['foo', {...}] 
+arrayLikeObject[Symbol.isConcatSpreadable] = true; 
+console.log(initial.concat(arrayLikeObject)); // ['foo', 'baz'] 
+
+let otherObject = new Set().add('qux'); 
+console.log(otherObject[Symbol.isConcatSpreadable]); // undefined 
+console.log(initial.concat(otherObject)); // ['foo', Set(1)] 
+otherObject[Symbol.isConcatSpreadable] = true; 
+console.log(initial.concat(otherObject)); // ['foo']
+```
 
 
 
+###### （8）Symbol.iterator
+
+​		这个符号表示迭代器 API 的函数。for-of 循环这样的语言结构会利用这个函数执行迭代操作，返回的对象是实现该 API 的 Generator。
+
+```
+class Foo { 
+ 	*[Symbol.iterator]() {} 
+} 
+let f = new Foo(); 
+console.log(f[Symbol.iterator]()); 
+// Generator {<suspended>}
+```
+
+​		Symbol.iterator 函数生成的对象应该通过其 next()方法陆续返回值。可以通过显式地调用 next()方法返回，也可以隐式地通过生成器函数返回
 
 
 
+###### （9）Symbol.match
+
+​		表示“一个正则表达式方法，该方法用正则表达式去匹配字符串。由 String.prototype.match()方法使用”，会使用以 Symbol.match 为键的函数来对正则表达式求值。
+
+​		传入非正则表达式值会导致该值被转换为 RegExp 对象。让方法直接使用参数，就可以重新定义函数，从而让 match（）方法使用非正则表达式实例。
+
+​		Symbol.match（）接收一个参数，就是调用 match（）方法的字符串实例（返回值没有限制）。
+
+```
+class FooMatcher { 
+ 	static [Symbol.match](target) { 
+ 		return target.includes('foo'); 
+ 	} 
+} 
+console.log('foobar'.match(FooMatcher)); // true 
+console.log('barbaz'.match(FooMatcher)); // false 
+class StringMatcher { 
+ 	constructor(str) { 
+ 	this.str = str; 
+ } 
+ 	[Symbol.match](target) { 
+ 		return target.includes(this.str); 
+ 	} 
+} 
+console.log('foobar'.match(new StringMatcher('foo'))); // true 
+console.log('barbaz'.match(new StringMatcher('qux'))); // false
+```
 
 
 
+###### （10）Symbol.replace
+
+​		替换一个字符串中匹配的子串。 由String.prototype.replace()方法使用。String.prototype.replace()方法会使用以 Symbol.replace 为键的函数来对正则表达式求值。
+
+```
+console.log(RegExp.prototype[Symbol.replace]); 
+// ƒ [Symbol.replace]() { [native code] } 
+console.log('foobarbaz'.replace(/bar/, 'qux')); 
+// 'fooquxbaz'
+```
+
+​		传入非正则表达式值会导致该值被转换为 RegExp 对象，Symbol.replace 函数接收两个参数，即调用 replace()方法的字符串实例和替换字符串。返回的值没有限制。（与（9）写法一致）
 
 
 
+###### （11）Symbol.search
+
+​		表示“一个正则表达式方法，该方法返回字符串中匹配正则表达式的索引。由 String.prototype.search()方法使用”。所有正则表达式实例默认是这个 String 方法的有效参数。
+
+```
+console.log(RegExp.prototype[Symbol.search]); 
+// ƒ [Symbol.search]() { [native code] } 
+console.log('foobar'.search(/bar/)); 
+// 3
+```
+
+​		传入非正则表达式值会导致该值被转换为 RegExp 对象。Symbol.search 函数接收一个参数，就是调用 match()方法的字符串实例。返回的值没有限制。（与（9）写法一致）
 
 
 
+###### （12）Symbol.species
+
+​		表示“一个函数值，该函数作为创建派生对象的构造函数”。
+
+```
+class Bar extends Array {} 
+class Baz extends Array { 
+ static get [Symbol.species]() { 
+ return Array; 
+ } 
+} 
+let bar = new Bar(); 
+console.log(bar instanceof Array); // true 
+console.log(bar instanceof Bar); // true
+bar = bar.concat('bar'); 
+console.log(bar instanceof Array); // true 
+console.log(bar instanceof Bar); // true 
+
+let baz = new Baz(); 
+console.log(baz instanceof Array); // true 
+console.log(baz instanceof Baz); // true 
+baz = baz.concat('baz'); 
+console.log(baz instanceof Array); // true 
+console.log(baz instanceof Baz); // false
+```
 
 
 
-
-
-
+###### （13）Symbol.split
 
 
 
