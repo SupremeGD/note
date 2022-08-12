@@ -1059,41 +1059,146 @@ console.log(baz instanceof Baz); // false
 
 ###### （13）Symbol.split
 
+​		表示“一个正则表达式方法，该方法在匹配正则表达式的索引位置拆分字符串。由 String.prototype.split()方法使用”。所有正则表达式实例默认是这个 String 方法的有效参数。
+
+```
+console.log(RegExp.prototype[Symbol.split]); 
+// ƒ [Symbol.split]() { [native code] } 
+console.log('foobarbaz'.split(/bar/)); 
+// ['foo', 'baz']
+```
+
+​		传入非正则表达式值会导致该值被转换为 RegExp 对象。Symbol.split 函数接收一个参数，就是调用 match()方法的字符串实例。返回的值没有限制。
+
+
+
+###### （14）Symbol.toPrimitive
+
+​		表示“一个方法，该方法将对象转换为相应的原始值。由 ToPrimitive 抽象操作使用”。自定义对象实例，可以通过 Symbol.toPrimitive 属性上定义一个可以改变默认行为。
+
+```
+class Foo {} 
+let foo = new Foo(); 
+console.log(3 + foo); // "3[object Object]" 
+console.log(3 - foo); // NaN 
+console.log(String(foo)); // "[object Object]" 
+class Bar { 
+	constructor() { 
+ 		this[Symbol.toPrimitive] = function(hint) { 
+ 			switch (hint) { 
+ 				case 'number': 
+ 					return 3; 
+ 				case 'string': 
+ 					return 'string bar'; 
+ 				case 'default': 
+ 				default: 
+ 					return 'default bar'; 
+ 			} 
+ 		} 
+ 	 } 
+}
+let bar = new Bar(); 
+console.log(3 + bar); // "3default bar" 
+console.log(3 - bar); // 0 
+console.log(String(bar)); // "string bar"
+```
+
+
+
+###### （15）Symbol.toStringTag
+
+​		表示“一个字符串，该字符串用于创建对象的默认字符串描述。由内置方法 Object.prototype.toString()使用”。
+
+​		通过 toString()方法获取对象标识时，会检索由 Symbol.toStringTag 指定的实例标识符，默认为"Object"。
+
+```
+let s = new Set(); 
+console.log(s); // Set(0) {} 
+console.log(s.toString()); // [object Set] 
+console.log(s[Symbol.toStringTag]); // Set
+```
+
+
+
+###### （16）Symbol.unscopables
+
+​		表示“一个对象，该对象所有的以及继承的属性，都会从关联对象的 with 环境绑定中排除”。设置这个符号并让其映射对应属性的键值为 true，就可以阻止该属性出现在 with 环境绑定中
+
+```
+let o = { foo: 'bar' }; 
+with (o) { 
+ 	console.log(foo); // bar 
+} 
+o[Symbol.unscopables] = { 
+ 	foo: true 
+}; 
+with (o) { 
+ 	console.log(foo); // ReferenceError 
+}
+```
+
+**注意**
+
+​		**不推荐使用 with ，因此也不推荐使用 Symbol.unscopables。**
 
 
 
 
 
+##### 8.Object 类型
+
+​		ECMAScript 中的对象其实就是一组数据和功能的集合。
+
+​		Object 实例都有如下属性和方法。
+
+```
+constructor：用于创建当前对象的函数。在前面的例子中，这个属性的值就是 Object() 
+函数。
+ hasOwnProperty(propertyName)：用于判断当前对象实例（不是原型）上是否存在给定的属
+性。要检查的属性名必须是字符串（如 o.hasOwnProperty("name")）或符号。
+ isPrototypeOf(object)：用于判断当前对象是否为另一个对象的原型。（第 8 章将详细介绍
+原型。）
+ propertyIsEnumerable(propertyName)：用于判断给定的属性是否可以使用（本章稍后讨
+论的）for-in 语句枚举。与 hasOwnProperty()一样，属性名必须是字符串。
+ toLocaleString()：返回对象的字符串表示，该字符串反映对象所在的本地化执行环境。
+ toString()：返回对象的字符串表示。
+ valueOf()：返回对象对应的字符串、数值或布尔值表示。通常与 toString()的返回值相同。
+因为在 ECMAScript 中 Object 是所有对象的基类，所以任何对象都有这些属性和方法。
+```
 
 
 
+### 3.5 操作符
+
+​		ECMA-262 描述了一组可用于操作数据值的操作符，包括数学操作符（如加、减）、位操作符、关系操作符和相等操作符等。在应用给对象时，操作符通常会调用 valueOf()和/或 toString()方法来取得可以计算的值。
 
 
 
+##### 1.一元操作符
+
+​		只操作一个值的操作符叫做一元操作符，一元操作符是 ECMAScript中最简单的操作符。
 
 
 
+###### （1）递增 / 递减操作符
 
+​		递增和递减操作符直接照搬自 C 语言，但有两个版本：前缀版和后缀版。前缀版就是位于要操作的变量前头，后缀版就是位于要操作的变量后头。
 
+​		这 4 个操作符可以作用于任何值，意思是不限于整数——字符串、布尔值、浮点值，甚至对象都可
 
+以。递增和递减操作符遵循如下规则。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
+ 对于字符串，如果是有效的数值形式，则转换为数值再应用改变。变量类型从字符串变成数值。
+ 对于字符串，如果不是有效的数值形式，则将变量的值设置为 NaN 。变量类型从字符串变成
+数值。
+ 对于布尔值，如果是 false，则转换为 0 再应用改变。变量类型从布尔值变成数值。
+ 对于布尔值，如果是 true，则转换为 1 再应用改变。变量类型从布尔值变成数值。
+ 对于浮点值，加 1 或减 1。 
+ 如果是对象，则调用其（第 5 章会详细介绍的）valueOf()方法取得可以操作的值。对得到的
+值应用上述规则。如果是 NaN，则调用 toString()并再次应用其他规则。变量类型从对象变成
+数值。
+```
 
 
 
