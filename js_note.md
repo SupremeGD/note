@@ -2025,33 +2025,333 @@ function sum(num1, num2) {
 
 
 
-##### 
+## 第4章
+
+​		JavaScript 变量是松散类型的，而且变量不过就是特定时间点一个特定值的名称而已。由于没有规则定义变量必须包含什么数据类型，变量的值和数据类型在脚本生命期内可以改变。
 
 
 
+##### 1.原始值与引用值
+
+​		ECMAScript 变量包含两种不同类型的数据：原始值和引用值。原始值就是最简单的数据，引用值是由多个值构成的对象。把一个值赋给变量时，JavaScript 引擎必须确定这个值是原始值还是引用值。保存的原始值的变量是按值（by  value）访问的。
+
+​		引用值是保存在内存中的对象。JavaScript 不允许直接访问内存位置，不能直接操作对象所在的内存空间。保存引用值的变量是按引用（by  reference ）访问的。
+
+**注意** 
+
+​		**在很多语言中，字符串是使用对象表示的，因此被认为是引用类型。ECMAScript**
+
+**打破了这个惯例。**
 
 
 
+###### （1）动态属性
+
+​		引用值可以随时添加、修改和删除其属性和方法。
+
+```
+let person = new Object(); 
+person.name = "Nicholas"; 
+console.log(person.name); // "Nicholas"
+```
+
+​		原始值不能有属性，尽管尝试给原始值添加属性不会报错。
+
+只有引用值可以动态添加后面可以使用的属性。
+
+```
+let name = "Nicholas"; 
+name.age = 27; 
+console.log(name.age); // undefined
+```
 
 
 
+###### （2）复制值
+
+​		原始值和引用值的复制也有所不同。原始值会被复制到新变量的位置。
+
+引用值从一个变量赋给另一个变量时，存储在变量中的值也会被复制到新变量所在的位置，这里复制的是一个指针，它指向存储在堆内存中的对象。
 
 
 
+###### （3）传递参数
+
+​		ECMAScript 中所有函数的参数都是按值传递的。
+
+​		在按值传递参数时，值会被复制到一个局部变量（即一个命名参数，或者用 ECMAScript 的话说，就是 arguments 对象中的一个槽位）。在按引用传递参数时，值在内存中的位置会被保存在一个局部变量，这意味着对本地变量的修改会反映到函数外部。
 
 
 
+```
+function addTen(num) { 
+ 	num += 10; 
+ 	return num; 
+} 
+let count = 20;
+let result = addTen(count); 
+console.log(count); // 20，没有变化
+console.log(result); // 30
+```
+
+​		函数 addTen()有一个参数 num，它其实是一个局部变量。在调用时，变量 count 作为参数传入。count 的值是 20，这个值被复制到参数 num 以便在 addTen()内部使用。在函数内部，参数 num的值被加上了 10，但这不会影响函数外部的原始变量 count。参数 num 和变量 count 互不干扰，它们只不过碰巧保存了一样的值。如果 num 是按引用传递的，那么 count 的值也会被修改为 30。
 
 
 
+```
+function setName(obj) { 
+ obj.name = "Nicholas"; 
+ obj = new Object(); 
+ obj.name = "Greg"; 
+} 
+let person = new Object(); 
+setName(person); 
+console.log(person.name); // "Nicholas"
+```
+
+​		setName()中多了两行代码，将 obj 重新定义为一个有着不同 name的新对象。当 person 传入 setName()时，其 name 属性被设置为"Nicholas"。然后变量 obj 被设置为一个新对象且 name 属性被设置为"Greg"。如果 person 是按引用传递的，那么 person 应该自动将指针改为指向 name 为"Greg"的对象。可是，当我们再次访问 person.name 时，它的值是"Nicholas"，这表明函数中参数的值改变之后，原始的引用仍然没变。当 obj 在函数内部被重写时，它变成了一个指向本地对象的指针。而那个本地对象在函数执行结束时就被销毁了。
 
 
 
+**注意** 
+
+​		**ECMAScript 中函数的参数就是局部变量。**
 
 
 
+###### （4）确定类型
+
+​		是判断一个变量是否为字符串、数值、布尔值或 undefined 的最好方式。是对象或 null ，那么  typeof  返回 “ object ” 。
+
+​		typeof  对原始值有用，但是对引用值的用处不大。为此，ECMAScript  提供了  instanceof  操作符。
+
+```
+result = variable instanceof constructor
+```
 
 
+
+```
+console.log(person instanceof Object); // 变量 person 是 Object 吗？
+console.log(colors instanceof Array); // 变量 colors 是 Array 吗？
+console.log(pattern instanceof RegExp); // 变量 pattern 是 RegExp 吗？
+```
+
+​		所有引用值都是 Object 的实例，因此通过 instanceof 操作符检测任何引用值和Object 构造函数都会返回 true。类似地，如果用 instanceof 检测原始值，则始终会返回 false，因为原始值不是对象。
+
+**注意**
+
+​		**typeof  操作符在用于检测函数时也会返回 “ function ”。ECMA-262 规定，任何实现内部[[Call]]方法的对象都应该在 typeof 检测时返回"function"。因为上述浏览器中的正则表达式实现了这个方法，所以 typeof 对正则表达式也返回"function"。在 IE 和 Firefox 中，typeof 对正则表达式返回"object"。**
+
+
+
+##### 2.执行上下文与作用域
+
+​		执行上下文的概念在 JavaScript 中颇为重要。每个上下文都有一个关联的变量对象，而这个上下文中定义的所有变量和函数都存在于这个对象上。
+
+​		全局上下文时最外层的上下文。根据 ECMAScript 实现的宿主环境，表示全局上下文的对象可能不一样。在浏览器中，全局上下文就是我们常说的 window 对象，因此所有通过 var 定义的全局变量和函数都会成为 window 对象的属性和方法。使用 let 和 const 的顶级声明不会定义在全局上下文中，但在作用域链解析上效果是一样的。
+
+上下文在其所有代码都执行完毕后会被销毁，包括定义在它上面的所有变量和函数（全局上下文在应用程序退出前才会被销毁，比如关闭网页或退出浏览器）。
+
+​		每个函数调用都有自己的上下文。当代码执行流进入函数时，函数的上下文被推到一个上下文栈上。在函数执行完之后，上下文栈会弹出该函数上下文，将控制权返还给之前的执行上下文。ECMAScript程序的执行流就是通过这个上下文栈进行控制的。
+
+​		上下文中的代码在执行的时候，会创建变量对象的一个作用域链，作用域链决定了各级上下文中的代码在访问变量和函数时的顺序。这个作用域链决定了各级上下文中的代码在访问变量和函数时的顺序。
+
+​		如果上下文时函数，则其活动对象用作变量对象。
+
+活动对象最初只有一个定义变量：arguments 。（全局上下文没有这个变量。），全局上下文的变量对象始终时作用域链的最后一个变量对象。
+
+
+
+```
+var color = "blue"; 
+function changeColor() { 
+ 	let anotherColor = "red"; 
+ 	function swapColors() { 
+ 		let tempColor = anotherColor; 
+ 		anotherColor = color; 
+ 		color = tempColor; 
+ 		// 这里可以访问 color、anotherColor 和 tempColor 
+	} 
+ 	// 这里可以访问 color 和 anotherColor，但访问不到 tempColor 
+ 	swapColors(); 
+} 
+// 这里只能访问 color 
+changeColor();
+```
+
+​		以上代码涉及 3 个上下文：全局上下文、changeColor()的局部上下文和 swapColors()的局部上下文。全局上下文中有一个变量 color 和一个函数 changeColor()。changeColor()的局部上下文中有一个变量 anotherColor 和一个函数 swapColors()，但在这里可以访问全局上下文中的变量 color。swapColors()的局部上下文中有一个变量 tempColor，只能在这个上下文中访问到。全局上下文和changeColor()的局部上下文都无法访问到 tempColor。而在 swapColors()中则可以访问另外两个上下文中的变量，因为它们都是父上下文。
+
+
+
+**注意**
+
+​		**函数参数被认为是当前上下文中的变量，因此也跟上下文中的其它变量遵循相同的访问规则。**
+
+
+
+###### （1）作用域链增强
+
+​		执行上下文主要有全局上下文和函数上下文两种（ eval（）调用内部存在第三种上下文），有其他方式来增强作用域链。某些语句会导致在作用域链前端临时添加一个上下文，这个上下文在代码执行后会被删除。通常在两种情况下会出现这个现象。
+
+```
+try/catch 语句的catch
+with 语句
+```
+
+​		两种情况都会在作用域链前端添加一个变量对象。with 语句，会向作用域链前端添加指定的对象；catch 语句，会创建一个新的变量对象，这个变量对象会包含要抛出的错误对象的声明。
+
+
+
+```
+function buildUrl() { 
+ 	let qs = "?debug=true"; 
+ 	with(location){ 
+ 		let url = href + qs; 
+ 	} 
+ 	return url; 
+}
+```
+
+​		with 语句将 location 对象作为上下文，因此 location 会被添加到作用域链前端。with 语句中的代码引用变量 href 时，实际上引用的是  location.href ，就是自己变量对象的属性。这里使用  let  声明的变量  url ，所以在with 块之外没有意义。
+
+
+
+**注意**
+
+​		**IE 的实现在 IE8 之前是有偏差的，即他们会将 catch 语句中捕捉的错误添加到执行上下文的变量对象上，而不是 catch 语句的变量对象上，导致在 catch 块外部都可以访问到错误。IE9 纠正了这个问题。**
+
+
+
+###### （2）变量声明
+
+​		ES6 之后，JavaScript 的变量声明经历了翻天覆地的变化。
+
+
+
+**1 使用 var 的函数作用域声明**
+
+​		使用 var 声明变量时，会被自动添加到最接近的上下文。在函数中最接近的上下文时函数的局部上下文，with 语句中，最接近的上下文也是函数上下文。变量未经声明就被初始化，他会自动被添加到全局上下文。
+
+```
+function add(num1, num2) { 
+ 	var sum = num1 + num2; 
+ 	return sum; 
+} 
+let result = add(10, 20); // 30 
+console.log(sum); // 报错：sum 在这里不是有效变量
+```
+
+​		变量 sum 在函数外部是访问不到的。如果省略上面例子中的关键字 var，那么 sum 在 add()被调用
+
+之后就变成可以访问的了。
+
+
+
+**注意**
+
+​		**未经声明而初始化变量是 JavaScript 编程中一个非常常见的错位u，会导致很多问题。在初始化变量之前一定要先声明变量。在严格模式下，未经声明就初始化变量会报错。**
+
+
+
+var 声明会被拿到函数或全局作用域的顶部，位于作用域中所有代码之前。这个现象叫作“提升”。提升让同一作用域中的代码不必考虑变量是否已经声明就可以直接使用。
+
+
+
+​		通过在声明之前打印变量，可以验证变量会被提升。声明的提升意味着会输出 undefined 而不是
+
+Reference Error。
+
+```
+console.log(name); // undefined 
+var name = 'Jake'; 
+function() { 
+ 	console.log(name); // undefined 
+ 	var name = 'Jake'; 
+}
+```
+
+
+
+**2  使用 let 的块级作用域声明**
+
+​		ES6 新增的 let 关键字跟 var 很相似，但它的作用域是块级的，这也是 JavaScript 中的新概念。
+
+​		let 与 var 的另一个不同之处是在同一作用域内不能声明两次。重复的 var 声明会被忽略，而重
+
+复的 let 声明会抛出 SyntaxError。
+
+​		let 的行为非常适合在循环中声明迭代变量。使用 var 声明的迭代变量会泄漏到循环外部，这种情
+
+况应该避免。
+
+​		严格来讲，let 在 JavaScript 运行时中也会被提升，但由于“暂时性死区”（temporal dead zone）的
+
+缘故，实际上不能在声明之前使用 let 变量。因此，从写 JavaScript 代码的角度说，let 的提升跟 var
+
+是不一样的。
+
+
+
+**3  使用 const 的常量声明**
+
+​		ES6 同时还增加了 const 关键字。使用 const 声明的变量必须同时初始化为某个值。一经声明，在其生命周期的任何时候都不能再重新赋予新值。const 除了要遵循以上规则，其他方面与 let 声明是一样的。
+
+​		赋值为对象的 const 变量不能再被重新赋值为其他引用值，但对象的键则不受限制。
+
+​		如果想让整个对象都不能修改，可以使用 Object.freeze()，这样再给属性赋值时虽然不会报错，
+
+但会静默失败。
+
+```
+const o3 = Object.freeze({}); 
+o3.name = 'Jake'; 
+console.log(o3.name); // undefined
+```
+
+​		const 声明变量的值是单一类型且不可修改，JavaScript 运行时编译器可以将所有实例都替换成实际的值，而不会通过查询表进行变量查询。谷歌的 V8 引擎就执行这种优化。
+
+
+
+**注意** 
+
+​		**开发实践表明，如果开发流程并不会因此而受很大影响，就应该尽可能地多使用**
+
+**const 声明，除非确实需要一个将来会重新赋值的变量。这样可以从根本上保证提前发现**
+
+**重新赋值导致的 bug。**
+
+
+
+**4  标识符查找**
+
+​		特定上下文中为读取或写入而引用一个标识符时，必须通过搜索确定这个表示符表示声明。搜索开始于作用域链前端，以给定的名称搜索对应的标识符。如果在局部上下文中找到该标识符，则搜索停止，变量确定；如果没有找到变量名，则继续沿作用域链搜索。（注意，作用域链中的对象也有一个原型链，因此搜索可能涉及每个对象的原型链。）这个过程一直持续到搜索至全局上下文的变量对象。如果仍然没有找到标识符，则说明其未声明。
+
+​		如果局部上下文中有一个同名的标识符，那就不能在该上下文中引用父上下文中的同名标识符。使用块级作用域声明并不会改变搜索流程，但可以给词法层级添加额外的层次。
+
+```
+var color = 'blue'; 
+function getColor() { 
+ 	let color = 'red'; 
+ 	{ 
+ 		let color = 'green'; 
+ 		return color; 
+ 	} 
+} 
+console.log(getColor()); // 'green'
+```
+
+​		变量已找到，搜索随即停止，所以就使用这个局部变量。这意味着函数会返回'green'。在局部变量 color 声明之后的任何代码都无法访问全局变量color，除非使用完全限定的写法 window.color。
+
+
+
+**注意**
+
+​		**标识符查找并非没有代价。访问局部变量比访问全局变量要快，因为不用切换作用域。JavaScript 引擎在优化标识符查找上做了很多工作，将来这个差异可能就微不足道了。**
+
+
+
+##### 3.垃圾回收
 
 
 
