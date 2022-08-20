@@ -2626,28 +2626,51 @@ vectorList.push(vector);
 
 原始值和引用值的特点：
 
-​			原始值大小固定，因此保存在栈内存上。
+​		1.原始值大小固定，因此保存在栈内存上。
 
-​			从一个变量到另一个变量复制原始值会创建该值的第二个副本。
+​		2.从一个变量到另一个变量复制原始值会创建该值的第二个副本。
 
-​			引用值是对象，存储在堆内存上。
+​		3.引用值是对象，存储在堆内存上。
 
-​			包含引用值的变量实际上只包含指向相应对象的一个指针，而不是对象本身。
+​		4.包含引用值的变量实际上只包含指向相应对象的一个指针，而不是对象本身。
 
-​			从一个变量到另一个变量复制引用值只会复制指针，因此结果是两个变量都指向同一个对象。
+​		5.从一个变量到另一个变量复制引用值只会复制指针，因此结果是两个变量都指向同一个对象。
 
-​			typeof 操作符可以确定值的原始类型，而 instanceof 操作符用于确保值的引用类型。
-
-
-
-
-
-​		任何变量（不管包含的是原始值还是引用值）都存在于某个执行上下文中（也称为作用域）。这个上下文（作用域）决定了变量的生命周期，以及它们可以访问代码的哪些部分。
+​		6.typeof 操作符可以确定值的原始类型，而 instanceof 操作符用于确保值的引用类型。
 
 
 
 
 
+任何变量（不管包含的是原始值还是引用值）都存在于某个执行上下文中（也称为作用域）。这个上下文（作用域）决定了变量的生命周期，以及它们可以访问代码的哪些部分。
+
+​		1.执行上下文分全局上下文、函数上下文和块级上下文。
+
+​		2.代码执行流每进入一个新上下文，都会创建一个作用域链，用于搜索变量和函数。
+
+​		3.函数或块的局部上下文不仅可以访问自己作用域内的变量，而且也可以访问任何包含上下文乃至全局上下文中的变量。
+
+​		4.全局上下文只能访问全局上下文中的变量和函数，不能直接访问局部上下文中的任何数据。
+
+​		5.变量的执行上下文用于确定什么时候释放内存。
+
+
+
+
+
+JavaScript 是使用垃圾回收的编程语言，开发者不需要操心内存分配和回收。
+
+​		1.离开作用域的值会被自动标记为可回收，然后在垃圾回收期间被删除。
+
+​		2.主流的垃圾回收算法是标记清理，即先给当前不使用的值加上标记，再回来回收它们的内存。
+
+​		3.引用计数是另一种垃圾回收策略，需要记录值被引用了多少次。JavaScript 引擎不再使用这种算法，但某些旧版本的 IE 仍然会受这种算法的影响，原因是 JavaScript 会访问非原生 JavaScript 对象（如 DOM 元素）。
+
+​		4.引用计数在代码中存在循环引用时会出现问题。
+
+​		5.解除变量的引用不仅可以消除循环引用，而且对垃圾回收也有帮助。为促进内存回收，全局对
+
+​			象、全局对象的属性和循环引用都应该在不需要时解除引用。
 
 
 
@@ -2655,12 +2678,657 @@ vectorList.push(vector);
 
 
 
+## 第5章  基本引用类型
+
+​		引用类型（或对象）是某个特定引用类型的实例。在ECMAScript 中，引用类型是把数据和功能组织到一起的结构，经常被错误的称作 “ 类 ”。虽然从技术上讲 JavaScript 是一门面向对象语言，但ECMAScript 缺少传统的面向对象编程语言所具备的某些基本结构，包括类和接口。引用类型有时候也被称为对象定义，因为它们描述了自己的对象应有的属性和方法。
+
+​		对象被认为是某个特定引用类型的实例。新对象通过使用 new 操作符后跟一个构造函数来创建。
+
+
+
+#### 1.Date
+
+​		Date 类型将日期保存为自协调世界时（UTC，Universal Time Coordinated）时间 1970 年 1 月 1 日午夜（零时）至今所经过的毫秒数。
+
+​		ECMAScript 提供了两个辅助方法：Date.parse（）和 Date.UTC（）。
+
+​		Date.parse（）方法接收一个表示日期的字符串参数，尝试将这个字符串转换为表示日期的毫秒数。
+
+```
+“月/日/年”，如"5/23/2019"； 
+“月名 日, 年”，如"May 23, 2019"； 
+“周几 月名 日 年 时:分:秒 时区”，如"Tue May 23 2019 00:00:00 GMT-0700"； 
+ISO 8601 扩展格式“YYYY-MM-DDTHH:mm:ss.sssZ”，如 2019-05-23T00:00:00（只适用于
+兼容 ES5 的实现）。
+```
+
+​		如果传给 Date.parse()的字符串并不表示日期，则该方法会返回 NaN。
+
+这两行代码得到的日期对象相同。
+
+```
+let someDate = new Date(Date.parse("May 23, 2019"));
+
+let someDate = new Date("May 23, 2019");
+```
+
+
+
+**注意**
+
+​		**不同的浏览器对 Date 类型的实现有很多问题。比如，很多浏览器会选择用当前日期替代越界的日期，因此有些浏览器会将"January 32, 2019"解释为"February 1, 2019"。Opera 则会插入当前月的当前日，返回"January 当前日, 2019"。就是说，如果是在 9 月 21 日运行代码，会返回"January 21, 2019"。**
 
 
 
 
 
+​		Date.UTC（）方法也是返回日期的毫秒表示，传给 Date.UTC()的参数是年、零起点月数（1 月是 0，2 月是 1，以此类推）、日（1~31）、时（0~23）、分、秒和毫秒。这些参数中，只有前两个（年和月）是必需的。如果不提供日，那么默认为 1 日。其他参数的默认值都是 0。
 
+​		第一个日期是 2000 年 1 月 1 日零点（GMT），2000 代表年，0 代表月（1 月）。因为没有其他参数（日取 1，其他取 0），所以结果就是该月第 1 天零点。第二个日期表示 2005年 5 月 5 日下午 5 点 55 分 55 （GMT）。虽然日期里面涉及的都是 5，但月数必须用 4，因为月数是零起点的。小时也必须是 17，因为这里采用的是 24 小时制，即取值范围是 0~23。
+
+```
+// GMT 时间 2000 年 1 月 1 日零点
+let y2k = new Date(Date.UTC(2000, 0)); 
+
+// GMT 时间 2005 年 5 月 5 日下午 5 点 55 分 55 秒
+let allFives = new Date(Date.UTC(2005, 4, 5, 17, 55, 55));
+
+还可以这样写：
+两个日期是（由于系统设置决定的）本地时区的日期。
+// 本地时间 2000 年 1 月 1 日零点
+let y2k = new Date(2000, 0); 
+// 本地时间 2005 年 5 月 5 日下午 5 点 55 分 55 秒
+let allFives = new Date(2005, 4, 5, 17, 55, 55);
+```
+
+
+
+​		与 Date.parse()一样，Date.UTC()也会被 Date 构造函数隐式调用，但有一个区别：这种情况下创建的是本地日期，不是 GMT 日期。不过 Date 构造函数跟 Date.UTC()接收的参数是一样的。
+
+
+
+​		ECMAScript 还提供了 Date.now()方法，返回表示方法执行时日期和时间的毫秒数。
+
+```
+// 起始时间
+let start = Date.now(); 
+// 调用函数
+doSomething(); 
+// 结束时间
+let stop = Date.now(), 
+result = stop - start;
+```
+
+
+
+##### 1 继承的方法
+
+​		Date 类型重写了 toLocaleString()、toString()和 valueOf()方法。但与其他类型不同，重写后这些方法的返回值不一样。
+
+ **toLocaleString()**：Date 类型的 toLocaleString()方法返回与浏览器运行的本地环境一致的日期和时间。这通常意味着格式中包含针对时间的 AM（上午）或 PM（下午），但不包含时区信息（具体格式可能因浏览器而不同）
+
+**toString()**：toString()方法通常返回带时区信息的日期和时间，而时间也是以 24 小时制（0~23）表示的。
+
+**valueOf()**：Date 类型的 valueOf() 方法根本就不返回字符串，这个方法被重写后返回的是日期的毫秒表示。所以
+
+操作符（如小于号和大于号）可以直接使用它返回的值。
+
+```
+let date1 = new Date(2019, 0, 1); // 2019 年 1 月 1 日
+let date2 = new Date(2019, 1, 1); // 2019 年 2 月 1 日
+
+console.log(date1 < date2); // true 
+console.log(date1 > date2); // false
+```
+
+
+
+地区为"en-US"的 PST，即 Pacific Standard Time，太平洋标准时间：
+
+```
+toLocaleString() - 2/1/2019 12:00:00 AM 
+toString() - Thu Feb 1 2019 00:00:00 GMT-0800 (Pacific Standard Time)
+```
+
+​		这些差异意味着 toLocaleString()和 toString()可能只对调试有用，不能用于显示。
+
+
+
+
+
+##### 2 日期格式化方法
+
+​		Date 类型有几个专门用于格式化日期的方法，他们都会返回字符串：
+
+```
+toDateString()显示日期中的周几、月、日、年（格式特定于实现）；
+toTimeString()显示日期中的时、分、秒和时区（格式特定于实现）；
+toLocaleDateString()显示日期中的周几、月、日、年（格式特定于实现和地区）；
+toLocaleTimeString()显示日期中的时、分、秒（格式特定于实现和地区）；
+toUTCString()显示完整的 UTC 日期（格式特定于实现）。
+```
+
+​		**这些方法的输出与 toLocaleString()和 toString()一样，会因浏览器而异。因此不能用于在用户界面上一致地显示日期。**
+
+
+
+**注意**
+
+​		**还有一个方法叫 toGMTString()，这个方法跟 toUTCString()是一样的，目的是为了向后兼容。不过，规范建议新代码使用 toUTCString()。**
+
+
+
+##### 3  日期/时间组件方法
+
+​		Date 类型剩下的方法直接涉及取得或设置日期值的特定部分，“ UTC 日期 ” 指的是没有时间偏移（将日期转换为 GMT）时的日期。
+
+```
+方法											说明
+getTime() 							返回日期的毫秒表示；与 valueOf()相同
+setTime(milliseconds) 				设置日期的毫秒表示，从而修改整个日期
+getFullYear() 						返回 4 位数年（即 2019 而不是 19）
+getUTCFullYear() 					返回 UTC 日期的 4 位数年
+setFullYear(year) 					设置日期的年（year 必须是 4 位数）
+setUTCFullYear(year) 				设置 UTC 日期的年（year 必须是 4 位数）
+getMonth() 							返回日期的月（0 表示 1 月，11 表示 12 月）
+getUTCMonth() 						返回 UTC 日期的月（0 表示 1 月，11 表示 12 月）
+setMonth(month) 					设置日期的月（month 为大于 0 的数值，大于 11 加年）
+setUTCMonth(month) 					设置 UTC 日期的月（month 为大于 0 的数值，大于 11 加年）
+getDate() 							返回日期中的日（1~31）
+getUTCDate() 						返回 UTC 日期中的日（1~31）
+setDate(date) 						设置日期中的日（如果 date 大于该月天数，则加月）
+setUTCDate(date) 					设置 UTC 日期中的日（如果 date 大于该月天数，则加月）
+getDay() 							返回日期中表示周几的数值（0 表示周日，6 表示周六）
+getUTCDay() 						返回 UTC 日期中表示周几的数值（0 表示周日，6 表示周六）
+getHours() 							返回日期中的时（0~23）
+getUTCHours() 						返回 UTC 日期中的时（0~23）
+setHours(hours) 					设置日期中的时（如果 hours 大于 23，则加日）
+setUTCHours(hours) 					设置 UTC 日期中的时（如果 hours 大于 23，则加日）
+getMinutes() 						返回日期中的分（0~59）
+getUTCMinutes() 					返回 UTC 日期中的分（0~59）
+setMinutes(minutes) 				设置日期中的分（如果 minutes 大于 59，则加时）
+setUTCMinutes(minutes) 				设置 UTC 日期中的分（如果 minutes 大于 59，则加时）
+getSeconds() 						返回日期中的秒（0~59）
+getUTCSeconds() 					返回 UTC 日期中的秒（0~59）
+setSeconds(seconds) 				设置日期中的秒（如果 seconds 大于 59，则加分）
+setUTCSeconds(seconds) 				设置 UTC 日期中的秒（如果 seconds 大于 59，则加分）
+getMilliseconds() 					返回日期中的毫秒
+getUTCMilliseconds() 				返回 UTC 日期中的毫秒
+setMilliseconds(milliseconds) 		设置日期中的毫秒
+setUTCMilliseconds(milliseconds) 	设置 UTC 日期中的毫秒
+getTimezoneOffset() 				返回以分钟计的 UTC 与本地时区的偏移量（如美国 EST 即“东部标准									时间”返回 300，进入夏令时的地区可能有所差异）
+```
+
+
+
+#### 2.RegExp
+
+​		ECMAScript 通过 RegExp 类型支持正则表达式。正则表达式使用类似 Perl 的简洁语法来创建
+
+```
+let expression = /pattern/flags;
+```
+
+​		这个正则表达式的 pattern （模式）可以是任何简单或复杂的正则表达式，包括字符类、限定类、分组、向前查找和反向引用。每个正则表达式可以带零个或多个 flags （标记），用于控制正则表达式的行为。
+
+​		表示匹配模式的标记：
+
+```
+ g：全局模式，表示查找字符串的全部内容，而不是找到第一个匹配的内容就结束。
+ i：不区分大小写，表示在查找匹配时忽略 pattern 和字符串的大小写。
+ m：多行模式，表示查找到一行文本末尾时会继续查找。
+ y：粘附模式，表示只查找从 lastIndex 开始及之后的字符串。
+ u：Unicode 模式，启用 Unicode 匹配。
+ s：dotAll 模式，表示元字符.匹配任何字符（包括\n 或\r）。
+```
+
+
+
+```
+// 匹配字符串中的所有"at" 
+let pattern1 = /at/g; 
+// 匹配第一个"bat"或"cat"，忽略大小写
+let pattern2 = /[bc]at/i; 
+// 匹配所有以"at"结尾的三字符组合，忽略大小写
+let pattern3 = /.at/gi;
+```
+
+
+
+​		与其他语言中的正则表达式类似，所有元字符在模式中也必须转义包括：
+
+```
+( [ { \ ^ $ | ) ] } ? * + .
+```
+
+
+
+​		正则表达式也可以使用 RegExp 构造函数来创建，它接收两个参数：模式字符串和（可选的）标记字符串。任何使用字面量定义的正则表达式也可以通过构造函数来创建。
+
+这里的 pattern1 和 pattern2 是等效的正则表达式。RegExp 构造函数的两个参数都是字符串。因为 RegExp 的模式参数是字符串，所以在某些情况下需要二次转义。
+
+```
+// 匹配第一个"bat"或"cat"，忽略大小写
+let pattern1 = /[bc]at/i;
+
+// 跟 pattern1 一样，只不过是用构造函数创建的
+let pattern2 = new RegExp("[bc]at", "i");
+```
+
+​		所有元字符都必须二次转义，包括转义字符序列，如\n（\转义后的字符串是\\，在正则表达式字符串中则要写成\\\\）。使用 RegExp 构造函数创建时对应的模式字符串。
+
+```
+字面量模式 							对应的字符串
+/\[bc\]at/ 							"\\[bc\\]at"
+/\.at/ 								"\\.at"
+/name\/age/ 						"name\\/age"
+/\d.\d{1,2}/ 						"\\d.\\d{1,2}"
+/\w\\hello\\123/ 					"\\w\\\\hello\\\\123"
+```
+
+
+
+​		使用 RegExp 也可以基于已有的正则表达式实例，并可选择性地修改它们的标记：
+
+```
+const re1 = /cat/g; 
+console.log(re1); // "/cat/g" 
+
+const re2 = new RegExp(re1); 
+console.log(re2); // "/cat/g"
+
+const re3 = new RegExp(re1, "i"); 
+console.log(re3); // "/cat/i"
+```
+
+
+
+##### 1  RegExp 实例属性
+
+​		每个 RegExp 实例都有以下属性：
+
+```
+ global：布尔值，表示是否设置了 g 标记。
+ ignoreCase：布尔值，表示是否设置了 i 标记。
+ unicode：布尔值，表示是否设置了 u 标记。
+ sticky：布尔值，表示是否设置了 y 标记。
+ lastIndex：整数，表示在源字符串中下一次搜索的开始位置，始终从 0 开始。
+ multiline：布尔值，表示是否设置了 m 标记。
+ dotAll：布尔值，表示是否设置了 s 标记。
+ source：正则表达式的字面量字符串（不是传给构造函数的模式字符串），没有开头和结尾的
+斜杠。
+ flags：正则表达式的标记字符串。始终以字面量而非传入构造函数的字符串模式形式返回（没
+有前后斜杠）
+```
+
+
+
+​		注意，虽然第一个模式是通过字面量创建的，第二个模式是通过 RegExp 构造函数创建的，但两个模式的 source 和 flags 属性是相同的。source 和 flags 属性返回的是规范化之后可以在字面量中使用的形式。
+
+```
+let pattern1 = /\[bc\]at/i; 
+console.log(pattern1.global); // false 
+console.log(pattern1.ignoreCase); // true 
+console.log(pattern1.multiline); // false 
+console.log(pattern1.lastIndex); // 0 
+console.log(pattern1.source); // "\[bc\]at" 
+console.log(pattern1.flags); // "i" 
+
+let pattern2 = new RegExp("\\[bc\\]at", "i"); 
+console.log(pattern2.global); // false 
+console.log(pattern2.ignoreCase); // true 
+console.log(pattern2.multiline); // false 
+console.log(pattern2.lastIndex); // 0 
+console.log(pattern2.source); // "\[bc\]at" 
+console.log(pattern2.flags); // "i"
+```
+
+
+
+##### 2 RegExp 实现方法
+
+​		RegExp 实例的主要方法是 exec()，主要用于配合捕获组使用。这个方法只接收一个参数，即要应用模式的字符串。如果找到了匹配项，则返回包含第一个匹配信息的数组；如果没找到匹配项，则返回null。返回的数组虽然是 Array 的实例，但包含两个额外的属性：index 和 input。index 是字符串中匹配模式的起始位置，input 是要查找的字符串。这个数组的第一个元素是匹配整个模式的字符串，其他元素是与表达式中的捕获组匹配的字符串。如果模式中没有捕获组，则数组只包含一个元素。
+
+```
+let text = "mom and dad and baby"; 
+let pattern = /mom( and dad( and baby)?)?/gi; 
+let matches = pattern.exec(text); 
+console.log(matches.index); // 0 
+console.log(matches.input); // "mom and dad and baby" 
+console.log(matches[0]); // "mom and dad and baby" 
+console.log(matches[1]); // " and dad and baby" 
+console.log(matches[2]); // " and baby"
+```
+
+​		
+
+​		如果模式设置了全局标记，则每次调用 exec()方法会返回一个匹配的信息。如果没有设置全局标记，则无论对同一个字符串调用多少次 exec()，也只会返回第一个匹配的信息。模式没有设置全局标记，因此调用 exec()只返回第一个匹配项（"cat"）。lastIndex在非全局模式下始终不变。
+
+```
+let text = "cat, bat, sat, fat"; 
+let pattern = /.at/; 
+
+let matches = pattern.exec(text); 
+console.log(matches.index); // 0 
+console.log(matches[0]); // cat 
+console.log(pattern.lastIndex); // 0 
+
+matches = pattern.exec(text); 
+console.log(matches.index); // 0 
+console.log(matches[0]); // cat 
+console.log(pattern.lastIndex); // 0
+```
+
+​		模式设置了全局标记，因此每次调用 exec()都会返回字符串中的下一个匹配项，直到搜索到字符串末尾。注意模式的 lastIndex 属性每次都会变化。在全局匹配模式下，每次调用 exec()都会更新 lastIndex 值，以反映上次匹配的最后一个字符的索引。
+
+```
+let text = "cat, bat, sat, fat"; 
+let pattern = /.at/g; 
+
+let matches = pattern.exec(text); 
+console.log(matches.index); // 0 
+console.log(matches[0]); // cat 
+console.log(pattern.lastIndex); // 3
+
+matches = pattern.exec(text); 
+console.log(matches.index); // 5 
+console.log(matches[0]); // bat 
+console.log(pattern.lastIndex); // 8 
+matches = pattern.exec(text); 
+console.log(matches.index); // 10 
+console.log(matches[0]); // sat 
+console.log(pattern.lastIndex); // 13
+```
+
+
+
+​		如果模式设置了粘附标记 y，则每次调用 exec()就只会在 lastIndex 的位置上寻找匹配项。粘附标记覆盖全局标记。
+
+```
+let text = "cat, bat, sat, fat"; 
+let pattern = /.at/y; 
+
+let matches = pattern.exec(text); 
+console.log(matches.index); // 0 
+console.log(matches[0]); // cat 
+console.log(pattern.lastIndex); // 3 
+
+// 以索引 3 对应的字符开头找不到匹配项，因此 exec()返回 null 
+// exec()没找到匹配项，于是将 lastIndex 设置为 0 
+matches = pattern.exec(text); 
+console.log(matches); // null 
+console.log(pattern.lastIndex); // 0 
+
+// 向前设置 lastIndex 可以让粘附的模式通过 exec()找到下一个匹配项：
+pattern.lastIndex = 5; 
+matches = pattern.exec(text); 
+console.log(matches.index); // 5 
+console.log(matches[0]); // bat 
+console.log(pattern.lastIndex); // 8
+```
+
+
+
+​		正则表达式的另一个方法是 test（），接收一个字符串参数。如果输入的文本与模式匹配，则参数返回 true，否则返回 false。这个方法适用于只想测试模式是否匹配，而不需要实际匹配内容的情况。
+
+​		这个例子中，正则表达式用于测试特定的数值序列。如果输入的文本与模式匹配，则显示匹配成功的消息。这个用法常用于验证用户输入，此时我们只在乎输入是否有效，不关心为什么无效。
+
+```
+let text = "000-00-0000"; 
+let pattern = /\d{3}-\d{2}-\d{4}/; 
+if (pattern.test(text)) { 
+ 	console.log("The pattern was matched."); 
+}
+```
+
+
+
+​		无论正则表达式是怎么创建的，继承的方法 toLocaleString()和 toString()都返回正则表达式的字面量表示。
+
+​		这里的模式是通过 RegExp 构造函数创建的，但 toLocaleString()和 toString()返回的都是其字面量的形式。
+
+```
+let pattern = new RegExp("\\[bc\\]at", "gi"); 
+console.log(pattern.toString()); // /\[bc\]at/gi 
+console.log(pattern.toLocaleString()); // /\[bc\]at/gi
+```
+
+
+
+**注意**
+
+​		**正则表达式的 valueOf（）方法返回正则表达式本身。**
+
+
+
+
+
+##### 3 RegExp 构造函数属性
+
+​		RegExp 构造函数本身也有几个属性。（其他语言被称为静态属性）。这些属性适用于作用域中的所有正则表达式，而且会根据最后执行的正则表达式操作而变化。可以通过两种不同的方式访问他们。每一个属性都有一个全名和一个简写。
+
+```
+全 名 				简 写 						说 明
+input 				  $_ 						最后搜索的字符串（非标准特性）
+lastMatch 			  $& 						最后匹配的文本
+lastParen 			  $+ 						最后匹配的捕获组（非标准特性）
+leftContext 		  $` 						input 字符串中出现在 lastMatch 前面的文本
+rightContext 		  $' 						input 字符串中出现在 lastMatch 后面的文本
+```
+
+
+
+​		通过这些属性可以提取出与 exec()和 test()执行的操作相关的信息。
+
+​		用于搜索任何后跟"hort"的字符，并把第一个字符放在了捕获组中。
+
+```
+let text = "this has been a short summer"; 
+let pattern = /(.)hort/g; 
+if (pattern.test(text)) { 
+ 	console.log(RegExp.input); // this has been a short summer 
+ 	console.log(RegExp.leftContext); // this has been a 
+ 	console.log(RegExp.rightContext); // summer 
+ 	console.log(RegExp.lastMatch); // short 
+ 	console.log(RegExp.lastParen); // s 
+}
+```
+
+
+
+​		不同属性包含的内容：
+
+```
+ input 属性中包含原始的字符串。
+ leftContext 属性包含原始字符串中"short"之前的内容，rightContext 属性包含"short"
+之后的内容。
+ lastMatch 属性包含匹配整个正则表达式的上一个字符串，即"short"。  lastParen 属性包含捕获组的上一次匹配，即"s"。
+```
+
+​		这些属性名也可以替换成简写形式，只不过要使用中括号语法来访问，如下面的例子所示，因为大
+
+多数简写形式都不是合法的 ECMAScript 标识符：
+
+```
+let text = "this has been a short summer"; 
+let pattern = /(.)hort/g; 
+/* 
+ * 注意：Opera 不支持简写属性名
+ * IE 不支持多行匹配
+ */ 
+if (pattern.test(text)) { 
+ 	console.log(RegExp.$_); // this has been a short summer 
+ 	console.log(RegExp["$`"]); // this has been a 
+ 	console.log(RegExp["$'"]); // summer 
+ 	console.log(RegExp["$&"]); // short 
+ 	console.log(RegExp["$+"]); // s 
+}
+```
+
+
+
+​		RegExp 还有其他几个构造函数属性，可以存储最多 9 个捕获组的匹配项。这些属性通过 RegExp. 
+
+$1~RegExp.$9 来访问，分别包含第 1~9 个捕获组的匹配项。在调用 exec()或 test()时，这些属性就会被填充。
+
+​		模式包含两个捕获组。调用 test()搜索字符串之后，因为找到了匹配项所以返回true，而且可以打印出通过 RegExp 构造函数的$1 和$2 属性取得的两个捕获组匹配的内容。
+
+```
+let text = "this has been a short summer"; 
+let pattern = /(..)or(.)/g; 
+if (pattern.test(text)) { 
+ 	console.log(RegExp.$1); // sh 
+ 	console.log(RegExp.$2); // t 
+}
+```
+
+
+
+**注意**
+
+​		**RegExp 构造函数的所有属性都没有任何 Web 标准出处，所以不要在生产环境中使用他们。**
+
+
+
+
+
+##### 4 模式局限
+
+​		虽然 ECMAScript 对正则表达式的支持有了长足的进步，但仍然缺少 Perl 语言中的一些高级特性。
+
+下列特性目前还没有得到 ECMAScript 的支持：
+
+```
+ \A 和\Z 锚（分别匹配字符串的开始和末尾）
+ 联合及交叉类
+ 原子组
+ x（忽略空格）匹配模式
+ 条件式匹配
+ 正则表达式注释
+```
+
+
+
+
+
+#### 3.原始值包装类型
+
+​		为了方便操作原始值，ECMAScript 提供了 3 种特殊的引用类型：Boolean、Number 和 String。这些其他引用类型一样的特点，但也具有与各自原始类型对应的特殊行为。每当用到某个原始值的方法或属性时，后台都会创建一个相应原始包装类型的对象，从而暴露出操作原始值的各种方法。
+
+```
+let s1 = "some text"; 
+let s2 = s1.substring(2);
+```
+
+​		具体来说，当第二行访问 s1 时，是以读模式访问的，也就是要从内存中读取变量保存的值。在以读模式访问字符串值的任何时候，后台都会执行以下 3 步：
+
+​		(1) 创建一个 String 类型的实例；
+
+​	(2) 调用实例上的特定方法；
+
+​	(3) 销毁实例。
+
+可以把这 3 步想象成执行了如下 3 行 ECMAScript 代码：
+
+```
+let s1 = new String("some text"); 
+let s2 = s1.substring(2); 
+s1 = null; 
+
+这种行为可以让原始值拥有对象的行为。对布尔值和数值而言，以上 3 步也会在后台发生，只不过使用的是 Boolean 和 Number 包装类型而已。
+```
+
+
+
+​		引用类型与原始值包装类型的主要区别在于对象的生命周期。在通过 new 实例化引用类型后，得到的实例会在离开作用域时被销毁，而自动创建的原始值包装对象则只存在于访问它的那行代码执行期间。这意味着不能在运行时给原始值添加属性和方法。
+
+```
+let s1 = "some text"; 
+s1.color = "red"; 
+console.log(s1.color); // undefined
+```
+
+​		原因就是第二行代码运行时会临时创建一个 String 对象，而当第三行代码执行时，这个对象已经被销毁了。实际上，第三行代码在这里创建了自己的 String 对象，但这个对象没有 color 属性。
+
+
+
+​		可以显式地使用 Boolean、Number 和 String 构造函数创建原始值包装对象。不过应该在确实必要时再这么做，否则容易让开发者疑惑，分不清它们到底是原始值还是引用值。在原始值包装类型的实例上调用 typeof 会返回"object"，所有原始值包装对象都会转换为布尔值 true。
+
+​		另外，Object 构造函数作为一个工厂方法，能够根据传入值的类型返回相应原始值包装类型的实例。
+
+```
+let obj = new Object("some text"); 
+console.log(obj instanceof String); // true
+```
+
+
+
+​		如果传给 Object 的是字符串，则会创建一个 String 的实例。如果是数值，则会创建 Number 的
+
+实例。布尔值则会得到 Boolean 的实例。
+
+​		注意，使用 new 调用原始值包装类型的构造函数，与调用同名的转型函数并不一样。
+
+```
+let value = "25"; 
+let number = Number(value); // 转型函数
+console.log(typeof number); // "number" 
+let obj = new Number(value); // 构造函数
+console.log(typeof obj); // "object"
+```
+
+​		在这个例子中，变量 number 中保存的是一个值为 25 的原始数值，而变量 obj 中保存的是一个Number 的实例。
+
+
+
+
+
+##### 1 Boolean
+
+​		Boolean 是对应布尔值的引用类型。要创建一个 Boolean 对象，就使用 Boolean 构造函数并传入true 或 false，如下例所示：
+
+```
+let booleanObject = new Boolean(true);
+```
+
+
+
+​		Boolean 的实例会重写 valueOf() 方法，返回一个原始值 true 或 false 。toString()方法被调用时也会被覆盖，返回字符串"true"或"false"。不过，Boolean 对象在 ECMAScript 中用得很少。
+
+```
+let falseObject = new Boolean(false); 
+let result = falseObject && true; 
+console.log(result); // true 
+
+let falseValue = false; 
+result = falseValue && true; 
+console.log(result); // false
+```
+
+​		创建一个值为 false 的 Boolean 对象。然后，在一个布尔表达式中通过&&操作将这个对象与一个原始值 true 组合起来。在布尔算术中，false && true 等于 false。可是，这个表达式是对 falseObject 对象而不是对它表示的值（false）求值。前面刚刚说过，所有对象在布尔表达式中都会自动转换为 true，因此 falseObject 在这个表达式里实际上表示一个 true 值。那么true && true 当然是 true。
+
+
+
+
+
+​		原始值和引用值（Boolean 对象）还有几个区别。首先，typeof 操作符对原始值返回"boolean"，但对引用值返回"object"。同样，Boolean 对象是 Boolean 类型的实例，在使用instaceof 操作符时返回 true，但对原始值则返回 false，
+
+```
+console.log(typeof falseObject); // object 
+console.log(typeof falseValue); // boolean 
+console.log(falseObject instanceof Boolean); // true 
+console.log(falseValue instanceof Boolean); // false
+```
+
+
+
+**注意**
+
+​		**理解原始布尔值和 Boolean 对象之间的区别非常重要，强烈建议永远不要使用后者。**
+
+
+
+##### 2 Number
 
 
 
