@@ -3330,43 +3330,518 @@ console.log(falseValue instanceof Boolean); // false
 
 ##### 2 Number
 
+​		Number 是对应数值的引用类型。  let numberObject = new Number(10); 
+
+​		与 Boolean 类型一样，Number 类型重写了 valueOf()、toLocaleString() 和 toString() 方法。
+
+valueOf() ：valueOf()方法返回 Number 对象表示的原始数值，另外两个方法返回数值字符串。
+
+toString() ：toString()方法可选地接收一个表示基数的参数，并返回相应基数形式的数值字符串。
+
+```
+let num = 10; 
+console.log(num.toString()); // "10" 
+console.log(num.toString(2)); // "1010" 
+console.log(num.toString(8)); // "12" 
+console.log(num.toString(10)); // "10" 
+console.log(num.toString(16)); // "a"
+```
+
+
+
+​		Number 类型还提供了几个用于将数值格式化为字符串的方法。
+
+toFixed() 方法返回包含指定小数点位数的数值字符串。果数值本身的小数位超过了参数指定的位数，则四舍五入到最接近的小数位。
+
+toFixed() 自动舍入的特点可以用于处理货币。需要注意多个浮点数值的数学计算不一定得到精确的结果。如：
+
+​		0.1 + 0.2 = 0.30000000000000004。
+
+```
+let num = 10; 
+console.log(num.toFixed(2)); // "10.00"
+
+let num = 10.005; 
+console.log(num.toFixed(2)); // "10.01"
+```
+
+**注意**
+
+​		**toFixed()方法可以表示有 0~20 个小数位的数值。某些浏览器可能支持更大的范围，但这是通常被支持的范围。**
+
+
+
+​		另一个用于格式化数值的方法是 toExponential()，返回科学记数法（指数记数法）表示数值字符串。与 toFixed() 一样，toExponential() 也接收一个参数，表示结果中小数的位数。这么小的数不用表示为科学记数法形式。如果想得到数值最适当的形式，那么可以使用 toPrecision()。
+
+```
+let num = 10; 
+console.log(num.toExponential(1)); // "1.0e+1"
+```
+
+
+
+​		toPrecision() 方法会根据情况返回最合理的输出结果，可能是固定长度，也可能是科学记数法形式。这个方法接收一个参数，表示结果中数字的总位数（不包含指数）。
+
+```
+let num = 99; 
+console.log(num.toPrecision(1)); // "1e+2" 
+console.log(num.toPrecision(2)); // "99" 
+console.log(num.toPrecision(3)); // "99.0"
+```
+
+​		首先要用 1 位数字表示数值 99，得到"1e+2"，也就是 100。因为 99 不能只用 1 位数字来精确表示，所以这个方法就将它舍入为 100，这样就可以只用 1 位数字（及其科学记数法形式）来表示了。用 2 位数字表示 99 得到"99"，用 3 位数字则是"99.0"。本质上，toPrecision()方法会根据数值和精度来决定调用 toFixed()还是 toExponential()。为了以正确的小数位精确表示数值，这 3 个方法都会向上或向下舍入。
+
+**注意**
+
+​		**toPrecision()方法可以表示带 1~21 个小数位的数值。某些浏览器可能支持更大的范围，但这是通常被支持的范围。**
+
+
+
+​		与 Boolean 对象类似，Number 对象也为数值提供了重要能力。不建议直接实例化 Number 对象。在处理原始数值和引用数值时，typeof  和  instacnceof  操作符会返回不同的结果。
+
+原始数值在调用 typeof 时始终返回"number"，而 Number 对象则返回"object"。类似地，Number对象是Number 类型的实例，而原始数值不是。
+
+```
+let numberObject = new Number(10); 
+let numberValue = 10; 
+console.log(typeof numberObject); // "object" 
+console.log(typeof numberValue); // "number" 
+console.log(numberObject instanceof Number); // true 
+console.log(numberValue instanceof Number); // false
+```
+
+
+
+​		**isInteger() 方法与安全整数**
+
+​		ES6 新增了 Number.isInteger() 方法，用于辨别一个数值是否保存完整。有时，小数位的 0 可能会让人误以为数值是一个浮点值：
+
+```
+console.log(Number.isInteger(1)); // true 
+console.log(Number.isInteger(1.00)); // true 
+console.log(Number.isInteger(1.01)); // false
+```
+
+
+
+​		IEEE 754 数值格式有一个特殊的数值范围，在这个范围内二进制值可以表示一个整数值。这个数值范围从 Number.MIN_SAFE_INTEGER（253 + 1）到 Number.MAX_SAFE_INTEGER（253  1）。对超出这个范围的数值，即使尝试保存为整数，IEEE 754 编码格式也意味着二进制值可能会表示一个完全不同的数值。为了鉴别整数是否在这个范围内，可以使用 Number.isSafeInteger()方法：
+
+```
+console.log(Number.isSafeInteger(-1 * (2 ** 53))); // false 
+console.log(Number.isSafeInteger(-1 * (2 ** 53) + 1)); // true 
+
+console.log(Number.isSafeInteger(2 ** 53)); // false 
+console.log(Number.isSafeInteger((2 ** 53) - 1)); // true
+```
 
 
 
 
 
+##### 3 String
+
+​		String 是对应字符串的引用类型，要创建一个 String 对象，使用 String 构造函数并传入一个数值。
+
+​		**let stringObject = new String("hello world");**
+
+
+
+​		String 对象的方法可以在所有字符串原始值上调用。3个继承的方法 valueOf()、toLocaleString()  和 toString() 都返回对象的原始字符串值。
+
+​		每个 String 对象都有一个 length 属性，表示字符串中字符的数量。
+
+
+
+###### （1）JavaScript 字符
+
+​		JavaScript 字符串由 16 位码元组成。对多数字符来说，每 16 位码元对应一个字符。换句话说，字符串的 length 属性表示字符串包含多少 16 位码元
+
+```
+let message = "abcde"; 
+console.log(message.length); // 5
+```
+
+
+
+​		charAt() 方法返回给定索引位置的字符，由传给方法的整数参数指定。具体来说，这个方法查找指定索引位置的 16 位码元，并返回该码元对应的字符。
+
+
+
+​		JavaScript 字符串使用了两种 Unicode 编码混合的策略：UCS-2 和 UTF-16。对于可以采用 16 位编码
+
+的字符（U+0000~U+FFFF），这两种编码实际上是一样的。
+
+
+
+​		使用 charCodeAt() 方法可以查看指定码元的字符编码。这个方法返回指定索引位置的码元值，索引以整数指定。
+
+```
+let message = "abcde"; 
+
+// Unicode "Latin small letter C"的编码是 U+0063 
+console.log(message.charCodeAt(2)); // 99
+
+// 十进制 99 等于十六进制 63 
+console.log(99 === 0x63); // true
+```
+
+
+
+​		fromCharCode() 方法用于根据给定的 UTF-16 码元创建字符串中的字符这个方法可以接受任意多个数值，并返回将所有数值对应的字符拼接起来的字符串：
+
+```
+// Unicode "Latin small letter A"的编码是 U+0061 
+// Unicode "Latin small letter B"的编码是 U+0062 
+// Unicode "Latin small letter C"的编码是 U+0063 
+// Unicode "Latin small letter D"的编码是 U+0064 
+// Unicode "Latin small letter E"的编码是 U+0065 
+console.log(String.fromCharCode(0x61, 0x62, 0x63, 0x64, 0x65)); // "abcde"
+
+// 0x0061 === 97 
+// 0x0062 === 98 
+// 0x0063 === 99 
+// 0x0064 === 100 
+// 0x0065 === 101 
+console.log(String.fromCharCode(97, 98, 99, 100, 101)); // "abcde"
+```
+
+​		对于 U+0000~U+FFFF 范围内的字符，length、charAt()、charCodeAt()和 fromCharCode()返回的结果都跟预期是一样的。这是因为在这个范围内，每个字符都是用 16 位表示的，而这几个方法也都基于 16 位码元完成操作。只要字符编码大小与码元大小一一对应，这些方法就能如期工作。
+
+​		这个对应关系在扩展到 Unicode 增补字符平面时就不成立了。问题很简单，即 16 位只能唯一表示65 536 个字符。这对于大多数语言字符集是足够了，在 Unicode 中称为基本多语言平面（BMP）。为了表示更多的字符，Unicode 采用了一个策略，即每个字符使用另外 16 位去选择一个增补平面。这种每个字符使用两个 16 位码元的策略称为代理对。
+
+
+
+​		在涉及增补平面的字符时，前面讨论的字符串方法就会出问题。
+
+```
+// "smiling face with smiling eyes" 表情符号的编码是 U+1F60A 
+// 0x1F60A === 128522 
+let message = "ab☺de";
+
+console.log(message.length); // 6 
+console.log(message.charAt(1)); // b
+
+console.log(message.charAt(2)); // <?> 
+console.log(message.charAt(3)); // <?> 
+console.log(message.charAt(4)); // d 
+
+console.log(message.charCodeAt(1)); // 98 
+console.log(message.charCodeAt(2)); // 55357 
+console.log(message.charCodeAt(3)); // 56842 
+console.log(message.charCodeAt(4)); // 100 
+
+console.log(String.fromCodePoint(0x1F60A)); // ☺
+console.log(String.fromCharCode(97, 98, 55357, 56842, 100, 101)); // ab☺de
+```
+
+​		这些方法仍然将 16 位码元当作一个字符，事实上索引 2 和索引 3 对应的码元应该被看成一个代理对，只对应一个字符。fromCharCode()方法仍然返回正确的结果，因为它实际上是基于提供的二进制表示直接组合成字符串。浏览器可以正确解析代理对（由两个码元构成），并正确地将其识别为一个Unicode 笑脸字符。
+
+
+
+​		为正确解析既包含单码元字符又包含代理对字符的字符串，可以使用 codePointAt()来代替charCodeAt()。与charCodeAt() 类似，codePointAt() 接收 16 位码元的索引并返回该索引位置上的码点。码点是 Unicode 中的一个字符的完整标识。"c"的码点是 0x0063，而"☺"的码点是 0x1F60A。码点可能是 16 位，也可能是 32 位，而codePointAt()方法可以从指定码元位置识别完整的码点。
+
+```
+let message = "ab☺de"; 
+console.log(message.codePointAt(1)); // 98 
+console.log(message.codePointAt(2)); // 128522 
+console.log(message.codePointAt(3)); // 56842 
+console.log(message.codePointAt(4)); // 100
+```
+
+**注意**
+
+​		**如果传入的码元索引并非代理对的开头，就会返回错误的码点。这种错误只有检测单个字符的时候才会出现，可以通过从左到右按正确的码元数遍历字符串来规避。**
+
+
+
+​		迭代字符串可以智能地识别代理对的码点：
+
+```
+console.log([..."ab☺de"]); // ["a", "b", "☺", "d", "e"]
+```
+
+​		与 charCodeAt()有对应的 codePointAt()一样，fromCharCode()也有一个对应的 fromCodePoint()。这个方法接收任意数量的码点，返回对应字符拼接起来的字符串：
+
+```
+console.log(String.fromCharCode(97, 98, 55357, 56842, 100, 101)); // ab☺de 
+console.log(String.**fromCodePoint**(97, 98, 128522, 100, 101)); // ab☺de
+```
+
+
+
+###### （2）normalize() 方法
+
+​		某些 Unicode 字符可以有多种编码形式。有的字符既可以通过一个 BMP 字符表示，也可以通过一个代理对表示。
+
+```
+// U+00C5：上面带圆圈的大写拉丁字母 A 
+console.log(String.fromCharCode(0x00C5)); // Å 
+
+// U+212B：长度单位“埃”
+console.log(String.fromCharCode(0x212B)); // Å 
+
+// U+004：大写拉丁字母 A 
+// U+030A：上面加个圆圈
+console.log(String.fromCharCode(0x0041, 0x030A)); //
+```
+
+
+
+​		比较操作符不在乎字符看起来是什么样的，因此这 3 个字符互不相等。
+
+```
+let a1 = String.fromCharCode(0x00C5), 
+ a2 = String.fromCharCode(0x212B), 
+ a3 = String.fromCharCode(0x0041, 0x030A); 
+ 
+console.log(a1, a2, a3); // Å, Å, Å 
+
+console.log(a1 === a2); // false 
+console.log(a1 === a3); // false 
+console.log(a2 === a3); // false
+```
+
+​		为解决这个问题，Unicode提供了 4种规范化形式，可以将类似上面的字符规范化为一致的格式，无论底层字符的代码是什么。这 4种规范化形式是：NFD（Normalization Form D）、NFC（Normalization Form C）、NFKD（Normalization Form KD）和 NFKC（Normalization Form KC）。可以使用 normalize()方法对字符串应用上述规范化形式，使用时需要传入表示哪种形式的字符串："NFD"、"NFC"、"NFKD"或"NFKC"。
+
+
+
+​		通过比较字符串与其调用 normalize()的返回值，就可以知道该字符串是否已经规范化了：
+
+```
+let a1 = String.fromCharCode(0x00C5), 
+ a2 = String.fromCharCode(0x212B), 
+ a3 = String.fromCharCode(0x0041, 0x030A); 
+ 
+// U+00C5 是对 0+212B 进行 NFC/NFKC 规范化之后的结果
+console.log(a1 === a1.normalize("NFD")); // false 
+console.log(a1 === a1.normalize("NFC")); // true 
+console.log(a1 === a1.normalize("NFKD")); // false 
+console.log(a1 === a1.normalize("NFKC")); // true 
+
+// U+212B 是未规范化的
+console.log(a2 === a2.normalize("NFD")); // false 
+console.log(a2 === a2.normalize("NFC")); // false 
+console.log(a2 === a2.normalize("NFKD")); // false 
+console.log(a2 === a2.normalize("NFKC")); // false 
+
+// U+0041/U+030A 是对 0+212B 进行 NFD/NFKD 规范化之后的结果
+console.log(a3 === a3.normalize("NFD")); // true 
+console.log(a3 === a3.normalize("NFC")); // false 
+console.log(a3 === a3.normalize("NFKD")); // true 
+console.log(a3 === a3.normalize("NFKC")); // false 
+
+选择同一种规范化形式可以让比较操作符返回正确的结果：
+let a1 = String.fromCharCode(0x00C5), 
+ a2 = String.fromCharCode(0x212B), 
+ a3 = String.fromCharCode(0x0041, 0x030A); 
+ 
+console.log(a1.normalize("NFD") === a2.normalize("NFD")); // true 
+console.log(a2.normalize("NFKC") === a3.normalize("NFKC")); // true 
+console.log(a1.normalize("NFC") === a3.normalize("NFC")); // true
+```
 
 
 
 
 
+（3）字符串操作方法
+
+​		concat()，用于将一个或多个字符串拼接成一个新字符串。
+
+```
+let stringValue = "hello "; 
+let result = stringValue.concat("world"); 
+
+console.log(result); // "hello world" 
+console.log(stringValue); // "hello"
+```
+
+​		concat()方法可以接收任意多个参数，因此可以一次性拼接多个字符串：
+
+```
+let stringValue = "hello "; 
+let result = stringValue.concat("world", "!");
+
+console.log(result); // "hello world!" 
+console.log(stringValue); // "hello"
+```
+
+​		虽然 concat()方法可以拼接字符串，但更常用的方式是使用加号操作符（+）。而且多数情况下，对于拼接多个字符串来说，使用加号更方便。
+
+
+
+​		ECMAScript 提供了 3 个从字符串中提取子字符串的方法：slice()、substr()和 substring()。这3个方法都返回调用它们的字符串的一个子字符串，而且都接收一或两个参数。第一个表示起始位置，第二个表示结束位置。
+
+​		对 slice()和 substring()而言，第二个参数是提取结束的位置（即该位置之前的字符会被提取出来）。对 substr()而言，第二个参数表示返回的子字符串数量。任何情况下，省略第二个参数都意味着提取到字符串末尾。
+
+```
+let stringValue = "hello world"; 
+console.log(stringValue.slice(3)); // "lo world" 
+console.log(stringValue.substring(3)); // "lo world" 
+console.log(stringValue.substr(3)); // "lo world" 
+console.log(stringValue.slice(3, 7)); // "lo w" 
+console.log(stringValue.substring(3,7)); // "lo w" 
+console.log(stringValue.substr(3, 7)); // "lo worl"
+```
+
+
+
+​		当某个参数是负值时，这 3 个方法的行为又有不同。比如，slice()方法将所有负值参数都当成字
+
+符串长度加上负参数值。
+
+​		substr()方法将第一个负参数值当成字符串长度加上该值，将第二个负参数值转换为 0。substring()方法会将所有负参数值都转换为 0。
+
+```
+let stringValue = "hello world"; 
+console.log(stringValue.slice(-3)); // "rld" 
+console.log(stringValue.substring(-3)); // "hello world" 
+console.log(stringValue.substr(-3)); // "rld" 
+console.log(stringValue.slice(3, -4)); // "lo w" 
+console.log(stringValue.substring(3, -4)); // "hel" 
+console.log(stringValue.substr(3, -4)); // "" (empty string)
+```
 
 
 
 
 
+（4）字符串位置方法
+
+​		有两个方法用于在字符串中定位子字符串：indexOf() 和 lastIndexOf()。从字符串中搜索传入的字符串，并返回位置（没找到，返回 -1）。indexOf()方法从字符串开头开始查找子字符串，而 lastIndexOf()方法从字符串末尾开始查找子字符串。
+
+​		两个方法都可以接收可选的第二个参数，表示开始搜索的位置。这意味着，indexOf()会从这个参数指定的位置开始向字符串末尾搜索，忽略该位置之前的字符；lastIndexOf()则会从这个参数指定的位置开始向字符串开头搜索，忽略该位置之后直到字符串末尾的字符。
 
 
 
+​		样使用第二个参数并循环调用indexOf()或 lastIndexOf()，就可以在字符串中找到所有的目标子字符串。
+
+```
+let stringValue = "Lorem ipsum dolor sit amet, consectetur adipisicing elit"; 
+let positions = new Array(); 
+let pos = stringValue.indexOf("e"); 
+
+while(pos > -1) { 
+ 	positions.push(pos); 
+ 	pos = stringValue.indexOf("e", pos + 1); 
+} 
+console.log(positions); // [3,24,32,35,52]
+```
 
 
 
+###### （5）字符串包含方法
+
+​		ECMAScript 6 增加了 3 个用于判断字符串中是否包含另一个字符串的方法：startsWith()、endsWith()和 includes()。这些方法都会从字符串中搜索传入的字符串，并返回一个表示是否包含的布尔值。
+
+startsWith() 检查开始于索引 0 的匹配项。
+
+endsWith() 检查开始于索引(string.length - substring.length)的匹配项。
+
+而 includes()检查整个字符串。
+
+```
+let message = "foobarbaz"; 
+
+console.log(message.startsWith("foo")); // true 
+console.log(message.startsWith("bar")); // false 
+
+console.log(message.endsWith("baz")); // true 
+console.log(message.endsWith("bar")); // false 
+
+console.log(message.includes("bar")); // true 
+console.log(message.includes("qux")); // false
+```
+
+​		startsWith()和 includes()方法接收可选的第二个参数，表示开始搜索的位置。
+
+​		endsWith()方法接收可选的第二个参数，表示应该当作字符串末尾的位置。
 
 
 
+###### （6）trim() 方法
+
+​		ECMAScript 在所有字符串上提供了trim()方法。这个方法会创建字符串的一个副本，删除前、后所有空格符，再返回结果。
+
+```
+let stringValue = " hello world "; 
+let trimmedStringValue = stringValue.trim(); 
+
+console.log(stringValue); // " hello world " 
+console.log(trimmedStringValue); // "hello world"
+```
+
+​		由于 trim()返回的是字符串的副本，因此原始字符串不受影响，即原本的前、后空格符都会保留。另外，trimLeft()和 trimRight()方法分别用于从字符串开始和末尾清理空格符。
 
 
 
+###### （7）repeat() 方法
+
+​		ECMAScript 在所有字符串上都提供了 repeat()方法。这个方法接收一个整数参数，表示要将字符串复制多少次，然后返回拼接所有副本后的结果。
 
 
 
+###### （8）padStart() 和 padEnd() 方法
+
+​		padStart() 和 padEnd() 方法会复制字符串，如果小于指定长度，则在相应一边填充字符，直至满足长度条件。这两个方法的第一个参数是长度，第二个参数是可选的填充字符串，默认为空格（U+0020）。
+
+```
+let stringValue = "foo"; 
+
+console.log(stringValue.padStart(6)); // " foo" 
+console.log(stringValue.padStart(9, ".")); // "......foo" 
+
+console.log(stringValue.padEnd(6)); // "foo " 
+console.log(stringValue.padEnd(9, ".")); // "foo......"
+```
 
 
 
+​		可选的第二个参数并不限于一个字符。如果提供了多个字符的字符串，则会将其拼接并截断以匹配指定长度。此外，如果长度小于或等于字符串长度，则会返回原始字符串。
 
 
 
+###### （9）字符串迭代与解构
 
+​		字符串的原型上暴露了一个@@iterator 方法，表示可以迭代字符串的每个字符。
+
+手动使用迭代器：
+
+```
+let message = "abc"; 
+let stringIterator = message[Symbol.iterator](); 
+
+console.log(stringIterator.next()); // {value: "a", done: false} 
+console.log(stringIterator.next()); // {value: "b", done: false} 
+console.log(stringIterator.next()); // {value: "c", done: false} 
+console.log(stringIterator.next()); // {value: undefined, done: true}
+```
+
+
+
+​		在 for-of 循环中可以通过这个迭代器按序访问每个字符。
+
+```
+for (const c of "abcde") { 
+ 	console.log(c); 
+} 
+// a 
+// b 
+// c 
+// d 
+// e
+```
+
+​		有了这个迭代器之后，字符串就可以通过解构操作符来解构了。比如，可以更方便地把字符串分割为字符数组：
+
+```
+let message = "abcde"; 
+console.log([...message]); // ["a", "b", "c", "d", "e"]
+```
+
+
+
+###### （10）字符串大小写转换
 
 
 
