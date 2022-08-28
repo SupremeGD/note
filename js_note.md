@@ -6957,7 +6957,7 @@ console.log(arr2); // [1, 2, 3]
 
 
 
-##### 1.理解迭代
+### 1.理解迭代
 
 ​		在 JavaScript 中，计数循环就是一种最简单的迭代。
 
@@ -6995,7 +6995,7 @@ collection.forEach((item) => console.log(item));
 
 
 
-##### 2.迭代模式
+### 2.迭代模式
 
 ​		迭代模式描述了一个方案，即可以把有些结构称为 “ 可迭代对象 ”， 因为他们实现了正式的  Iterable 接口，而且可以通过迭代器 Iterator 消费。
 
@@ -7021,7 +7021,7 @@ let set = new Set().add(3).add(1).add(4);
 
 
 
-###### （1）可迭代协议
+#### （1）可迭代协议
 
 ​		实现 Iterable 接口要求同时具备两种能力：支持迭代的自我识别能力和创建实现  Iterator 接口的对象的能力。在 ECMAScript 中，这意味着必须暴露一个属性作为“默认迭代器”，而且这个属性必须使用特殊的 Symbol.iterator 作为键。这个默认迭代器属性必须引用一个迭代器工厂函数，调用这个工厂函数必须返回一个新迭代器。
 
@@ -7136,7 +7136,7 @@ console.log(map); // Map(3) { 'foo'=>0, 'bar'=>1, 'baz'=>2 }
 
 
 
-###### （2）迭代器协议
+#### （2）迭代器协议
 
 ​		迭代器是一种一次性使用的对象，用于迭代与其相关联的可迭代对象。迭代器 API 使用 next() 方法在可迭代对象中遍历数组。每次成功调用 next()，都会返回一个 IteratorResult 对象，其中包含迭代器返回的下一个值。若不调用 next()，则无法知道迭代器的当前位置。
 
@@ -7218,7 +7218,7 @@ console.log(a[Symbol.iterator]()); // Array Iterator {}
 
 
 
-###### （3）自定义迭代器
+#### （3）自定义迭代器
 
 ​		与 Iterable 接口类似，任何实现 Iterator 接口的对象都可以作为迭代器使用。下面这个例子中的 Counter 类只能被迭代一定的次数：
 
@@ -7303,7 +7303,7 @@ console.log(iter1 === iter2); // true
 
 
 
-###### （4）提前终止迭代器
+#### （4）提前终止迭代器
 
 ​		可选的 return() 方法用于指定在迭代器提前关闭时执行的逻辑。执行迭代的结构在想让迭代器知道它不想遍历到可迭代对象耗尽时，就可以 “ 关闭 ” 迭代器。可能的情况有：
 
@@ -7425,131 +7425,573 @@ for (let i of iter) {
 
 
 
+### 3.生成器
 
+​		生成器是 ECMAScript 6 新增的一个极为灵活的结构，拥有在一个函数块内暂停和恢复代码执行的能力。比如，使用生成器可以自定义迭代器和实现协程。
 
 
 
+#### （1）生成器基础
 
+​		生成器的形式是一个函数，函数名称前面加一个星号（*）表示它是一个生成器，只要是可以定义函数的地方，就可以定义生成器。
 
+```
+// 生成器函数声明
+function* generatorFn() {}
 
+// 生成器函数表达式
+let generatorFn = function* () {} 
 
+// 作为对象字面量方法的生成器函数
+let foo = { 
+ * generatorFn() {} 
+} 
 
+// 作为类实例方法的生成器函数
+class Foo { 
+ * generatorFn() {} 
+} 
 
+// 作为类静态方法的生成器函数
+class Bar { 
+ static * generatorFn() {} 
+}
+```
 
+**注意**
 
+​		**箭头函数不能用来定义生成器函数。**
 
 
 
+​		标识生成器函数的星号不受两侧空格的影响：
 
+```
+// 等价的生成器函数： 
+function* generatorFnA() {} 
+function *generatorFnB() {} 
+function * generatorFnC() {} 
 
+// 等价的生成器方法：
+class Foo { 
+ 	*generatorFnD() {} 
+ 	* generatorFnE() {} 
+}
+```
 
 
 
+​		调用生成器函数会产生一个生成器对象。生成器对象一开始处于暂停执行（suspended）的状态。与迭代器相似，生成器对象也实现了 Iterator 接口，因此具有 next()方法。调用这个方法会让生成器开始或恢复执行。
 
+```
+function* generatorFn() {} 
+const g = generatorFn(); 
 
+console.log(g); // generatorFn {<suspended>} 
+console.log(g.next); // f next() { [native code] }
+console.log(g.next()); // { done: true, value: undefined }
+```
 
+​		next()方法的返回值类似于迭代器，有一个 done 属性和一个 value 属性。函数体为空的生成器函数中间不会停留，调用一次 next()就会让生成器到达 done: true 状态。
 
 
 
+​		value 属性是生成器函数的返回值，默认值为 undefined，可以通过生成器函数的返回值指定：
 
+```
+function* generatorFn() { 
+ 	return 'foo'; 
+} 
+let generatorObject = generatorFn(); 
 
+console.log(generatorObject); // generatorFn {<suspended>} 
+console.log(generatorObject.next()); // { done: true, value: 'foo' }
+```
 
 
 
+​		生成器函数只会在初次调用 next()方法后开始执行。
 
+```
+function* generatorFn() { 
+ 	console.log('foobar'); 
+} 
 
+// 初次调用生成器函数并不会打印日志
+let generatorObject = generatorFn(); 
+generatorObject.next(); // foobar
+```
 
 
 
+​		生成器对象实现了 Iterable 接口，它们默认的迭代器是自引用的：
 
+```
+function* generatorFn() {} 
 
+console.log(generatorFn); 	// f* generatorFn() {} 
+console.log(generatorFn()[Symbol.iterator]);	// f [Symbol.iterator]() {native code} 
 
+console.log(generatorFn()); 	// generatorFn {<suspended>} 
+console.log(generatorFn()[Symbol.iterator]()); 	// generatorFn {<suspended>} 
 
+const g = generatorFn(); 
+console.log(g === g[Symbol.iterator]()); 	// true
+```
 
 
 
 
 
+#### （2）通过 yield 中断执行
 
+​		yield 关键字可以让生成器停止和开始执行，也是生成器最有用的地方。生成器函数在遇到 yield 关键字之前会正常工作。遇到这个关键字后，执行会停止，函数作用域的状态会被保留。停止执行的生成器函数只能通过在生成器对象上调用 next()方法来恢复执行：
 
+```
+function* generatorFn() { 
+ 	yield; 
+} 
 
+let generatorObject = generatorFn(); 
+console.log(generatorObject.next()); // { done: false, value: undefined } 
+console.log(generatorObject.next()); // { done: true, value: undefined }
+```
 
 
 
+​		此时的yield 关键字有点像函数的中间返回语句，它生成的值会出现在 next()方法返回的对象里。通过 yield 关键字退出的生成器函数会处在 done: false 状态；通过 return 关键字退出的生成器函数会处于 done: true 状态。
 
+```
+function* generatorFn() { 
+ 	yield 'foo'; 
+ 	yield 'bar'; 
+ 	return 'baz'; 
+} 
 
+let generatorObject = generatorFn(); 
+console.log(generatorObject.next()); // { done: false, value: 'foo' } 
+console.log(generatorObject.next()); // { done: false, value: 'bar' } 
+console.log(generatorObject.next()); // { done: true, value: 'baz' }
+```
 
+​		生成器函数内部的执行流程会针对每个生成器对象区分作用域。在一个生成器对象上调用 next()不会影响其他生成器。
 
 
 
+​		yield 关键字只能在生成器函数内部使用，用在其他地方会抛出错误。类似函数的 return 关键字，yield 关键字必须直接位于生成器函数定义中，出现在嵌套的非生成器函数中会抛出语法错误：
 
+```
+// 有效
+function* validGeneratorFn() { 
+ 	yield; 
+} 
 
+// 无效
+function* invalidGeneratorFnA() { 
+ 	function a() { 
+ 		yield; 
+ 	} 
+} 
 
+// 无效
+function* invalidGeneratorFnB() { 
+ 	const b = () => { 
+ 		yield; 
+ 	} 
+} 
 
+// 无效
+function* invalidGeneratorFnC() { 
+ 	(() => { 
+ 		yield; 
+ 	})(); 
+}
+```
 
 
 
+##### 1.生成器对象作为可迭代对象
 
+​		在生成器对象上显示调用 next() 方法的用处并不大。如果把生成器对象当成可迭代对象，那么使用起来会更方便：
 
+```
+function* generatorFn() { 
+ 	yield 1; 
+ 	yield 2; 
+ 	yield 3; 
+} 
 
+for (const x of generatorFn()) { 
+ 	console.log(x); 
+} 
+// 1 
+// 2 
+// 3
+```
 
 
 
+​		在需要自定义迭代对象时，这样使用生成器对象会特别有用。比如，我们需要定义一个可迭代对象，而它会产生一个迭代器，这个迭代器会执行指定的次数。使用生成器，可以通过一个简单的循环来实现。n = 0，while条件为假。
 
+```
+function* nTimes(n) { 
+ 	while(n--) { 
+ 		yield; 
+ 	} 
+}
+for (let _ of nTimes(3)) { 
+ 	console.log('foo'); 
+} 
+// foo 
+// foo 
+// foo
+```
 
 
 
+##### 2.使用 yield 实现输入和输出
 
+​		除了可以作为函数的中间返回语句使用，yield 关键字还可以作为函数的中间参数使用。上一次让生成器函数暂停的 yield 关键字会接收到传给 next()方法的第一个值。这里有个地方不太好理解——第一次调用 next()传入的值不会被使用，因为这一次调用是为了开始执行生成器函数：
 
+```
+function* generatorFn(initial) { 
+ 	console.log(initial); 
+ 	console.log(yield); 
+ 	console.log(yield); 
+} 
+let generatorObject = generatorFn('foo'); 
+generatorObject.next('bar'); // foo 
+generatorObject.next('baz'); // baz 
+generatorObject.next('qux'); // qux
 
 
+yield 关键字可以同时用于输入和输出，如下例所示：
+function* generatorFn() { 
+ 	return yield 'foo'; 
+} 
+let generatorObject = generatorFn(); 
+console.log(generatorObject.next()); // { done: false, value: 'foo' } 
+console.log(generatorObject.next('bar')); // { done: true, value: 'bar' }
+```
 
 
 
+​		因为函数必须对整个表达式求值才能确定要返回的值，所以它在遇到 yield 关键字时暂停执行并计算出要产生的值："foo"。下一次调用 next()传入了"bar"，作为交给同一个 yield 的值。然后这个值被确定为本次生成器函数要返回的值。
 
+​		yield 关键字并非只能使用一次。
 
+```
+function* generatorFn() { 
+ 	for (let i = 0;;++i) { 
+ 		yield i; 
+ 	} 
+} 
 
+let generatorObject = generatorFn(); 
+console.log(generatorObject.next().value); // 0 
+console.log(generatorObject.next().value); // 1 
+console.log(generatorObject.next().value); // 2 
+console.log(generatorObject.next().value); // 3 
+console.log(generatorObject.next().value); // 4 
+console.log(generatorObject.next().value); // 5
+```
 
 
 
+​		这样使用生成器也可以实现范围和填充数组：
 
+```
+function* range(start, end) { 
+ 	while(end > start) { 
+ 		yield start++; 
+ 	} 
+} 
+for (const x of range(4, 7)) { 
+ 	console.log(x); 
+} 
+// 4 
+// 5 
+// 6 
 
+function* zeroes(n) { 
+ 	while(n--) { 
+ 		yield 0; 
+ 	} 
+} 
+console.log(Array.from(zeroes(8))); // [0, 0, 0, 0, 0, 0, 0, 0]
+```
 
 
 
 
 
+##### 3.产生可迭代对象
 
+​		与生成器函数的星号类似，yield 星号两侧的空格不影响其行为。
 
+​		可以使用星号增强 yield 行为，让它能够迭代一个可迭代对象，从而一次产出一个值：
 
+```
+// 等价的 generatorFn： 
+// function* generatorFn() { 
+//  	for (const x of [1, 2, 3]) { 
+// 			yield x; 
+// 		} 
+// } 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function* generatorFn() { 
+ 	yield* [1, 2, 3]; 
+} 
+let generatorObject = generatorFn(); 
+for (const x of generatorFn()) { 
+ 	console.log(x); 
+} 
+// 1 
+// 2 
+// 3 
+```
+
+​		因为 yield*实际上只是将一个可迭代对象序列化为一连串可以单独产出的值，所以这跟把 yield 放到一个循环里没什么不同。
+
+```
+function* generatorFnA() { 
+ 	for (const x of [1, 2, 3]) { 
+ 		yield x; 
+ 	} 
+}
+```
+
+
+
+​		yield*的值是关联迭代器返回 done: true 时的 value 属性。对于普通迭代器来说，这个值是 undefined。
+
+```
+function* generatorFn() { 
+ 	console.log('iter value:', yield* [1, 2, 3]); 
+} 
+for (const x of generatorFn()) { 
+ 	console.log('value:', x); 
+} 
+// value: 1 
+// value: 2 
+// value: 3 
+// iter value: undefined
+```
+
+​		对于生成器函数产生的迭代器来说，这个值就是生成器函数返回的值。
+
+```
+function* innerGeneratorFn() { 
+ 	yield 'foo'; 
+ 	return 'bar'; 
+} 
+function* outerGeneratorFn(genObj) { 
+ 	console.log('iter value:', yield* innerGeneratorFn()); 
+} 
+for (const x of outerGeneratorFn()) { 
+ 	console.log('value:', x); 
+} 
+// value: foo 
+// iter value: bar
+```
+
+
+
+
+
+##### 4.使用 yield * 实现递归算法
+
+​		yield * 最有用的地方是实现递归操作，此时生成器可以产生自身。
+
+```
+function* nTimes(n) { 
+ 	if (n > 0) { 
+ 		yield* nTimes(n - 1); 
+ 		yield n - 1; 
+ 	} 
+} 
+for (const x of nTimes(3)) { 
+ 	console.log(x); 
+} 
+// 0 
+// 1 
+// 2
+```
+
+​		在这个例子中，每个生成器首先都会从新创建的生成器对象产出每个值，然后再产出一个整数。结果就是生成器函数会递归地减少计数器值，并实例化另一个生成器对象。从最顶层来看，这就相当于创建一个可迭代对象并返回递增的整数。
+
+​		使用递归生成器结构和 yield*可以优雅地表达递归算法。下面是一个图的实现，用于生成一个随机的双向图：
+
+```
+class Node { 
+ 	constructor(id) { 
+ 		this.id = id; 
+ 		this.neighbors = new Set(); 
+ 	} 
+ 	connect(node) { 
+ 		if (node !== this) { 
+ 			this.neighbors.add(node); 
+ 			node.neighbors.add(this); 
+ 		} 
+ 	} 
+} 
+class RandomGraph { 
+ 	constructor(size) { 
+ 		this.nodes = new Set(); 
+ 		// 创建节点
+ 		for (let i = 0; i < size; ++i) { 
+			this.nodes.add(new Node(i)); 
+ 		} 
+ 		// 随机连接节点
+ 		const threshold = 1 / size; 
+ 		for (const x of this.nodes) { 
+ 			for (const y of this.nodes) { 
+ 				if (Math.random() < threshold) { 
+ 				x.connect(y); 
+ 			} 
+ 		} 
+ 	} 
+ } 
+ // 这个方法仅用于调试
+ print() { 
+ 	for (const node of this.nodes) { 
+ 		const ids = [...node.neighbors] 
+ 					.map((n) => n.id) 
+ 					.join(','); 
+ 		console.log(`${node.id}: ${ids}`); 
+ 		} 
+ 	} 
+} 
+const g = new RandomGraph(6); 
+g.print(); 
+// 示例输出：
+// 0: 2,3,5 
+// 1: 2,3,4,5 
+// 2: 1,3 
+// 3: 0,1,2,4 
+// 4: 2,3 
+// 5: 0,4
+```
+
+
+
+​		图数据结构非常适合递归遍历，而递归生成器恰好非常合用。为此，生成器函数必须接收一个可迭代对象，产出该对象中的每一个值，并且对每个值进行递归。这个实现可以用来测试某个图是否连通，即是否没有不可到达的节点。只要从一个节点开始，然后尽力访问每个节点就可以了。结果就得到了一个非常简洁的深度优先遍历：
+
+```
+class Node { 
+ 	constructor(id) { 
+ 		... 
+ 	} 
+ 	connect(node) { 
+ 		... 
+ 	} 
+} 
+class RandomGraph { 
+ 	constructor(size) { 
+ 		... 
+ 	} 
+ 	print() { 
+ 		... 
+ 	} 
+ 	isConnected() { 
+ 		const visitedNodes = new Set(); 
+ 		function* traverse(nodes) { 
+ 			for (const node of nodes) { 
+ 				if (!visitedNodes.has(node)) { 
+ 					yield node; 
+					yield* traverse(node.neighbors); 
+ 				} 
+ 			} 
+ 		} 
+ 	// 取得集合中的第一个节点
+ 	const firstNode = this.nodes[Symbol.iterator]().next().value; 
+ 	// 使用递归生成器迭代每个节点
+ 	for (const node of traverse([firstNode])) { 
+ 		visitedNodes.add(node); 
+ 	} 
+ 	return visitedNodes.size === this.nodes.size; 
+ 	} 
+}
+```
+
+
+
+
+
+#### （3）生成器作为默认迭代器
+
+​		因为生成器对象实现了 Iterable 接口，而且生成器函数和默认迭代器被调用之后都产生迭代器，所以生成器格外适合作为默认迭代器。下面是一个简单的例子，这个类的默认迭代器可以用一行代码产出类的内容：
+
+```
+class Foo { 
+ 	constructor() { 
+ 		this.values = [1, 2, 3]; 
+ 	}
+ 	* [Symbol.iterator]() { 
+ 		yield* this.values; 
+ 	} 
+} 
+const f = new Foo(); 
+for (const x of f) { 
+ 	console.log(x); 
+} 
+// 1 
+// 2 
+// 3
+```
+
+​		这里，for-of 循环调用了默认迭代器（它恰好又是一个生成器函数）并产生了一个生成器对象。这个生成器对象是可迭代的，所以完全可以在迭代中使用。
+
+
+
+
+
+##### （4）提前终止生成器
+
+​		与迭代器类似，生成器也支持“可关闭”的概念。一个实现 Iterator 接口的对象一定有 next()方法，还有一个可选的 return()方法用于提前终止迭代器。生成器对象除了有这两个方法，还有第三个方法：throw()。
+
+return()和 throw()方法都可以用于强制生成器进入关闭状态。
+
+```
+function* generatorFn() {} 
+const g = generatorFn(); 
+console.log(g); // generatorFn {<suspended>} 
+console.log(g.next); // f next() { [native code] } 
+console.log(g.return); // f return() { [native code] } 
+console.log(g.throw); // f throw() { [native code] } 
+```
+
+
+
+###### 1.return()
+
+​		return()方法会强制生成器进入关闭状态。提供给 return()方法的值，就是终止迭代器对象的值。
+
+​		与迭代器不同，所有生成器对象都有 return() 方法，只要通过它进入关闭状态，就无法恢复了。后续调用 next() 会显示 done: true 状态，而提供的任何返回值都不会被存储或传播
+
+```
+function* generatorFn() { 
+ 	for (const x of [1, 2, 3]) { 
+ 		yield x; 
+ } 
+} 
+const g = generatorFn(); 
+console.log(g); // generatorFn {<suspended>} 
+console.log(g.return(4)); // { done: true, value: 4 } 
+console.log(g); // generatorFn {<closed>}
+```
+
+
+
+​		for-of 循环等内置语言结构会忽略状态为 done: true 的 IteratorObject 内部返回的值。
+
+
+
+
+
+###### 2.throw()
+
+​		
 
 
 
