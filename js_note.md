@@ -11866,63 +11866,257 @@ construct()必须返回一个对象。
 
 ​		通过捕获 get、set 和 has 等操作，可以知道对象属性什么时候被访问、被查询。把实现相应捕获器的某个对象代理放到应用中，可以监控这个对象何时在何处被访问过：
 
+```
+const user = { 
+ 	name: 'Jake' 
+}; 
+const proxy = new Proxy(user, { 
+ 	get(target, property, receiver) { 
+		console.log(`Getting ${property}`); 
+ 		return Reflect.get(...arguments); 
+ 	}, 
+ 	set(target, property, value, receiver) { 
+ 		console.log(`Setting ${property}=${value}`); 
+ 		return Reflect.set(...arguments); 
+ 	} 
+}); 
+proxy.name; // Getting name 
+proxy.age = 27; // Setting age=27
+```
+
+
+
+##### 2 隐藏属性
+
+​		代理的内部实现对外部代码是不可见的，因此要隐藏目标对象上的属性也轻而易举。
+
+```
+const hiddenProperties = ['foo', 'bar']; 
+const targetObject = { 
+ 	foo: 1, 
+ 	bar: 2, 
+ 	baz: 3 
+}; 
+const proxy = new Proxy(targetObject, { 
+ 	get(target, property) { 
+ 		if (hiddenProperties.includes(property)) { 
+ 			return undefined; 
+		} else { 
+ 			return Reflect.get(...arguments); 
+ 		} 
+ 	}, 
+ 	has(target, property) {
+ 		if (hiddenProperties.includes(property)) { 
+ 			return false; 
+ 		} else { 
+ 			return Reflect.has(...arguments); 
+ 		} 
+ 	} 
+}); 
+// get() 
+console.log(proxy.foo); // undefined 
+console.log(proxy.bar); // undefined 
+console.log(proxy.baz); // 3 
+// has() 
+console.log('foo' in proxy); // false 
+console.log('bar' in proxy); // false 
+console.log('baz' in proxy); // true
+```
+
+
+
+##### 3 属性验证
+
+​		因为所有赋值操作都会触发 set()捕获器，所以可以根据所赋的值决定是允许还是拒绝赋值：
+
+```
+const target = { 
+ 	onlyNumbersGoHere: 0 
+}; 
+const proxy = new Proxy(target, { 
+ 	set(target, property, value) { 
+ 		if (typeof value !== 'number') { 
+ 			return false; 
+ 		} else { 
+ 			return Reflect.set(...arguments); 
+ 		} 
+ 	} 
+}); 
+proxy.onlyNumbersGoHere = 1; 
+console.log(proxy.onlyNumbersGoHere); // 1 
+proxy.onlyNumbersGoHere = '2'; 
+console.log(proxy.onlyNumbersGoHere); // 1
+```
+
+
+
+##### 4 函数与构造函数参数验证
+
+​		跟保护和验证对象属性类似，也可对函数和构造函数参数进行审查。比如，可以让函数只接收某种类型的值：
+
+```
+function median(...nums) { 
+ 	return nums.sort()[Math.floor(nums.length / 2)]; 
+} 
+const proxy = new Proxy(median, { 
+ 	apply(target, thisArg, argumentsList) { 
+ 		for (const arg of argumentsList) { 
+ 			if (typeof arg !== 'number') { 
+ 				throw 'Non-number argument provided'; 
+ 			} 
+ 		}
+ 		return Reflect.apply(...arguments); 
+ 	} 
+}); 
+console.log(proxy(4, 7, 1)); // 4 
+console.log(proxy(4, '7', 1)); 
+// Error: Non-number argument provided
+
+
+类似地，可以要求实例化时必须给构造函数传参：
+class User { 
+ 	constructor(id) { 
+ 		this.id_ = id; 
+ 	} 
+} 
+const proxy = new Proxy(User, { 
+ 	construct(target, argumentsList, newTarget) { 
+ 		if (argumentsList[0] === undefined) { 
+ 			throw 'User cannot be instantiated without id'; 
+ 		} else { 
+ 			return Reflect.construct(...arguments); 
+ 		} 
+ 	} 
+}); 
+new proxy(1); 
+new proxy(); 
+// Error: User cannot be instantiated without id
+```
+
+
+
+##### 5 数据绑定与可观察对象
+
+​		通过代理可以把运行时中原本不相关的部分联系到一起。这样就可以实现各种模式，从而让不同的代码互操作。
+
+​		比如，可以将被代理的类绑定到一个全局实例集合，让所有创建的实例都被添加到这个集合中：
+
+```
+const userList = []; 
+class User { 
+ 	constructor(name) { 
+ 		this.name_ = name; 
+ 	} 
+} 
+const proxy = new Proxy(User, { 
+	construct() { 
+ 		const newUser = Reflect.construct(...arguments); 
+ 		userList.push(newUser); 
+ 		return newUser; 
+ 	} 
+}); 
+new proxy('John'); 
+new proxy('Jacob'); 
+new proxy('Jingleheimerschmidt'); 
+console.log(userList); // [User {}, User {}, User{}]
+
+另外，还可以把集合绑定到一个事件分派程序，每次插入新实例时都会发送消息：
+const userList = []; 
+function emit(newValue) { 
+ 	console.log(newValue); 
+} 
+const proxy = new Proxy(userList, { 
+ 	set(target, property, value, receiver) { 
+ 		const result = Reflect.set(...arguments); 
+ 		if (result) { 
+ 			emit(Reflect.get(target, property, receiver)); 
+ 		} 
+ 		return result; 
+ 	} 
+}); 
+proxy.push('John'); 
+// John 
+proxy.push('Jacob'); 
+// Jacob
+```
+
+
+
+#### 4.小结
+
+​		代理是 ECMAScript 6 新增的令人兴奋和动态十足的新特性。但不支持向后兼容。
+
+​		代理可以定义包含捕获器的处理程序对象，而这些捕获器可以拦截绝大部分 JavaScript 的基本操作和方法。在这个捕获器处理程序中，可以修改任何基本操作的行为，当然前提是遵从捕获器不变式。
+
+​		与代理如影随形的反射 API，则封装了一整套与捕获器拦截的操作相对应的方法。可以把反射 API 看作一套基本操作，这些操作是绝大部分 JavaScript 对象 API 的基础。
+
+​		代理的应用场景是不可限量的。开发者使用它可以创建出各种编码模式。
 
 
 
 
 
+## 第10章 函数
+
+​		函数是ECMAScript中最有意思的部分之一，这主要是因为函数实际上是对象。每个函数都是Function类型的实例，而 Function 也有属性和方法，跟其他引用类型一样。因为函数是对象，所以函数名就是指向函数对象的指针，而且不一定与函数本身紧密绑定。函数通常以函数声明的方式定义。（注意函数定义最后没有加分号）
+
+```
+function sum (num1, num2) { 
+ 	return num1 + num2; 
+}
+```
 
 
 
+#### 1.箭头函数
+
+​		ECMAScript 6 新增了使用胖箭头（=>）语法定义函数表达式的能力。很大程度上，箭头函数实例化的函数对象与正式的函数表达式创建的函数对象行为是相同的。任何可以使用函数表达式的地方，都可以使用箭头函数：
+
+```
+let arrowSum = (a, b) => { 
+ 	return a + b; 
+}; 
+let functionExpressionSum = function(a, b) { 
+ 	return a + b; 
+}; 
+console.log(arrowSum(5, 8)); // 13 
+console.log(functionExpressionSum(5, 8)); // 13
+
+
+箭头函数简洁的语法非常适合嵌入函数的场景：
+let ints = [1, 2, 3]; 
+console.log(ints.map(function(i) { return i + 1; })); // [2, 3, 4] 
+console.log(ints.map((i) => { return i + 1 })); // [2, 3, 4]
+```
+
+如果只有一个参数，那也可以不用括号。只有没有参数，或者多个参数的情况下，才需要使用括号
 
 
 
+​		箭头函数也可以不用大括号，但这样会改变函数的行为。使用大括号就说明包含“函数体”，可以在一个函数中包含多条语句，跟常规的函数一样。如果不使用大括号，那么箭头后面就只能有一行代码，比如一个赋值操作，或者一个表达式。而且，省略大括号会隐式返回这行代码的值
+
+```
+// 以下两种写法都有效，而且返回相应的值
+let double = (x) => { return 2 * x; }; 
+let triple = (x) => 3 * x; 
+// 可以赋值
+let value = {}; 
+let setName = (x) => x.name = "Matt"; 
+setName(value); 
+console.log(value.name); // "Matt" 
+// 无效的写法：
+let multiply = (a, b) => return a * b;
+```
+
+​		箭头函数虽然语法简洁，但也有很多场合不适用。箭头函数不能使用 arguments、super 和 new.target，也不能用作构造函数。此外，箭头函数也没有 prototype 属性。
 
 
 
+#### 2.函数名
 
+​		因为函数名就是指向函数的指针，所以它们跟其他包含对象指针的变量具有相同的行为。这意味着一个函数可以有多个名称
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+​		
 
 
 
