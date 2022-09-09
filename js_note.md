@@ -12549,75 +12549,292 @@ let sum = function(num1, num2) {
 
 ​		函数名在 ECMAScript 中就是变量，所以函数可以用在任何可以使用变量的地方。这意味着不仅可以把函数作为参数传给另一个函数，而且还可以在一个函数中返回另一个函数。
 
+```
+function callSomeFunction(someFunction, someArgument) { 
+ 	return someFunction(someArgument); 
+}
+```
 
+​		这个函数接收两个参数。第一个参数应该是一个函数，第二个参数应该是要传给这个函数的值。任何函数都可以像下面这样作为参数传递：
 
+```
+function add10(num) { 
+ 	return num + 10; 
+} 
+let result1 = callSomeFunction(add10, 10); 
+console.log(result1); // 20 
+function getGreeting(name) { 
+ 	return "Hello, " + name; 
+} 
+let result2 = callSomeFunction(getGreeting, "Nicholas"); 
+console.log(result2); // "Hello, Nicholas"
+```
 
+
+
+​		假设有一个包含对象的数组，而我们想按照任意对象属性对数组进行排序。这个问题可以通过定义一个根据属性名来创建比较函数的函数来解决。
+
+```
+function createComparisonFunction(propertyName) { 
+ 	return function(object1, object2) { 
+ 		let value1 = object1[propertyName]; 
+ 		let value2 = object2[propertyName]; 
+ 		if (value1 < value2) { 
+ 			return -1; 
+ 		} else if (value1 > value2) { 
+ 			return 1; 
+ 		} else { 
+ 			return 0; 
+ 		} 
+ 	}; 
+}
+```
+
+​		内部函数可以访问 propertyName 参数，并通过中括号语法取得要比较的对象的相应属性值。取得属性值以后，再按照 sort()方法的需要返回比较值就行了。这个函数可以像下面这样使用：
+
+```
+let data = [ 
+ 	{name: "Zachary", age: 28}, 
+ 	{name: "Nicholas", age: 29} 
+]; 
+data.sort(createComparisonFunction("name")); 
+console.log(data[0].name); // Nicholas
+data.sort(createComparisonFunction("age")); 
+console.log(data[0].name); // Zachary
+```
 
+​		默认情况下，sort()方法要对这两个对象执行 toString()，然后再决定它们的顺序，但这样得不到有意义的结果。而通过调用 createComparisonFunction("name")来创建一个比较函数，就可以根据每个对象 name 属性的值来排序，结果 name 属性值为"Nicholas"、age 属性值为 29 的对象会排在前面。
 
 
 
 
 
+#### 9.函数内部
 
+​		在 ECMAScript 5 中，函数内部存在两个特殊的对象：arguments 和 this。ECMAScript 6 又新增了 new.target 属性。
 
+##### 1 arguments
 
+​		arguments 是一个类数组对象，包含调用函数时传入的所有参数。这个对象只有以 function 关键字定义函数（相对于使用箭头语法创建函数）时才会有。arguments 对象其实还有一个 callee 属性，是一个指向 arguments 对象所在函数的指针。来看下面这个经典的阶乘函数：
 
+```
+function factorial(num) { 
+ 	if (num <= 1) { 
+ 		return 1; 
+ 	} else { 
+ 		return num * factorial(num - 1); 
+ 	} 
+}
+```
 
+​		阶乘函数一般定义成递归调用的。只要给函数一个名称，而且这个名称不会变，这样定义就没有问题。但是，这个函数要正确执行就必须保证函数名是 factorial，从而导致了紧密耦合。使用 arguments.callee 就可以让函数逻辑与函数名解耦：
 
+```
+function factorial(num) { 
+ 	if (num <= 1) { 
+ 		return 1; 
+ 	} else { 
+ 		return num * arguments.callee(num - 1); 
+ 	} 
+}
+```
 
+​		这个重写之后的 factorial()函数已经用 arguments.callee 代替了之前硬编码的 factorial。这意味着无论函数叫什么名称，都可以引用正确的函数。
 
 
 
+##### 2 this
 
+​		另一个特殊的对象是 this，它在标准函数和箭头函数中有不同的行为。
 
+​		在标准函数中，this 引用的是把函数当成方法调用的上下文对象，这时候通常称其为 this 值（在网页的全局上下文中调用函数时，this 指向 windows）
 
+```
+window.color = 'red'; 
+let o = { 
+ 	color: 'blue' 
+}; 
+function sayColor() { 
+ 	console.log(this.color); 
+} 
+sayColor(); // 'red' 
+o.sayColor = sayColor; 
+o.sayColor(); // 'blue'
+```
 
+​		如果在全局上下文中调用sayColor()，这结果会输出"red"，因为 this 指向 window，而 this.color 相当于 window.color。而在把 sayColor()赋值给 o 之后再调用 o.sayColor()，this 会指向 o，即 this.color 相当于o.color，所以会显示"blue"。
 
+​		在对sayColor()的两次调用中，this 引用的都是 window 对象，因为这个箭头函数是在 window 上下文中定义的：
 
+```
+window.color = 'red'; 
+let o = { 
+ 	color: 'blue' 
+}; 
+let sayColor = () => console.log(this.color); 
+sayColor(); // 'red' 
+o.sayColor = sayColor; 
+o.sayColor(); // 'red'
+```
 
+​		在事件回调或定时回调中调用某个函数时，this 值指向的并非想要的对象。此时将回调函数写成箭头函数就可以解决问题。这是因为箭头函数中的 this 会保留定义该函数时的上下文：
 
+```
+function King() { 
+ 	this.royaltyName = 'Henry'; 
+ 	// this 引用 King 的实例
+ 	setTimeout(() => console.log(this.royaltyName), 1000); 
+}
+function Queen() { 
+ 	this.royaltyName = 'Elizabeth'; 
+ 	// this 引用 window 对象
+ 	setTimeout(function() { console.log(this.royaltyName); }, 1000); 
+} 
+new King(); // Henry 
+new Queen(); // undefined
+```
 
+**注意**
 
+​		**函数名只是保存指针的变量。因此全局定义的 sayColor()函数和 o.sayColor()是同一个函数，只不过执行的上下文不同。**
 
 
 
 
 
+##### 3 caller
 
+​		ECMAScript 5 也会给函数对象上添加一个属性：caller。虽然 ECMAScript 3 中并没有定义，但所有浏览器除了早期版本的 Opera 都支持这个属性。这个属性引用的是调用当前函数的函数，或者如果是在全局作用域中调用的则为 null。
 
+​		如果要降低耦合度，则可以通过 arguments.callee.caller 来引用同样的值：
 
+```
+function outer() { 
+ 	inner(); 
+} 
+function inner() { 
+ 	console.log(arguments.callee.caller); 
+} 
+outer();
+```
 
+​		在严格模式下访问 arguments.callee 会报错。ECMAScript 5 也定义了 arguments.caller，但在严格模式下访问它会报错，在非严格模式下则始终是 undefined。这是为了分清 arguments.caller和函数的 caller 而故意为之的。而作为对这门语言的安全防护，这些改动也让第三方代码无法检测同一上下文中运行的其他代码。
 
+​		严格模式下还有一个限制，就是不能给函数的 caller 属性赋值，否则会导致错误。
 
 
 
+##### 4 new.target
 
+​		ECMAScript 中的函数始终可以作为构造函数实例化一个新对象，也可以作为普通函数被调用。ECMAScript 6 新增了检测函数是否使用 new 关键字调用的 new.target 属性。函数是正常调用的值是 undefined；如果是使用 new 关键字调用的，new.target 将引用被调用的构造函数。
 
+```
+function King() { 
+ 	if (!new.target) { 
+ 		throw 'King must be instantiated using "new"' 
+ 	} 
+ 	console.log('King instantiated using "new"'); 
+} 
+new King(); // King instantiated using "new" 
+King(); // Error: King must be instantiated using "new"
+```
 
 
 
+#### 10.函数属性与方法
 
+​		ECMAScript 中的函数是对象，因此有属性和方法。每个函数都有两个属性：length 和 prototype。
 
+```
+function sayName(name) { 
+ 	console.log(name); 
+} 
+function sum(num1, num2) { 
+ 	return num1 + num2; 
+} 
+function sayHi() { 
+ 	console.log("hi"); 
+} 
+console.log(sayName.length); // 1 
+console.log(sum.length); // 2 
+console.log(sayHi.length); // 0
+```
 
+​		sayName()函数有 1 个命名参数，所以其 length 属性为 1。其余类似。
 
 
 
+​		prototype 属性也许是 ECMAScript 核心中最有趣的部分。prototype 是保存引用类型所有实例方法的地方，这意味着 toString()、valueOf()等方法实际上都保存在 prototype 上，进而由所有实例共享。在 ECMAScript 5
 
+中，prototype 属性是不可枚举的，因此使用 for-in 循环不会返回这个属性。
 
+​		函数还有两个方法：apply()和 call()。这两个方法都会以指定的 this 值来调用函数，即会设置调用函数时函数体内 this 对象的值。
 
+**apply()方法接收两个参数：**函数内 this 的值和一个参数数组。第二个参数可以是 Array 的实例，但也可以是 												arguments 对象。
 
+**call()方法：**与 apply()的作用一样，只是传参的形式不同。第一个参数跟 apply()一样，也是 this值，而剩下的要					传给被调用函数的参数则是逐个传递的。换句话说，通过 call()向函数传参时，必须将参数一个一个地					列出来。
 
+```
+function sum(num1, num2) { 
+ 	return num1 + num2; 
+} 
+function callSum1(num1, num2) { 
+ 	return sum.apply(this, arguments); // 传入 arguments 对象
+}
+function callSum2(num1, num2) { 
+ 	return sum.apply(this, [num1, num2]); // 传入数组
+} 
+console.log(callSum1(10, 10)); // 20 
+console.log(callSum2(10, 10)); // 20
+```
 
+​		到底是使用 apply()还是 call()，完全取决于怎么给要调用的函数传参更方便。如果想直接传 arguments 对象或者一个数组，那就用 apply()；否则，就用 call()。如果不用给被调用的函数传参，则使用哪个方法都一样。
 
 
 
+​		apply()和 call()真正强大的地方并不是给函数传参，而是控制函数调用上下文即函数体内 this 值的能力。
 
+```
+window.color = 'red'; 
+let o = { 
+ 	color: 'blue' 
+}; 
+function sayColor() { 
+ 	console.log(this.color); 
+} 
+sayColor(); // red 
+sayColor.call(this); // red 
+sayColor.call(window); // red 
+sayColor.call(o); // blue
+```
 
+​		this.color 会求值为 window.color。如果在全局作用域中显式调用 sayColor.call(this)或者sayColor.call(window)，则同样都会显示"red"。而在使用 sayColor.call(o)把函数的执行上下文即 this 切换为对象 o 之后，结果就变成了显示"blue"了。
 
+​		使用 call()或 apply()的好处是可以将任意对象设置为任意函数的作用域，这样对象可以不用关心方法。
 
 
 
+​		ECMAScript 5 出于同样的目的定义了一个新方法：bind()。bind()方法会创建一个新的函数实例，其 this 值会被绑定到传给 bind()的对象。
 
+```
+window.color = 'red'; 
+var o = { 
+ 	color: 'blue' 
+}; 
+function sayColor() { 
+ 	console.log(this.color); 
+} 
+let objectSayColor = sayColor.bind(o); 
+objectSayColor(); // blue
+```
+
+​		对函数而言，继承的方法 toLocaleString()和 toString()始终返回函数的代码。继承的方法 valueOf()返回函数本身。
+
+
+
+#### 11.函数表达式
+
+​		定义函数有两种方式：函数声明和函数表达式。
 
 
 
