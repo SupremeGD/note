@@ -13707,49 +13707,158 @@ let application = function() {
 
 ​		相对地，**异步行为**类似于系统中断，即当前进程外部的实体可以触发代码执行。异步操作经常是必要的，因为强制进程等待一个长时间的操作通常是不可行的（同步操作则必须要等）。如果代码要访问一些高延迟的资源，比如向远程服务器发送请求并等待响应，那么就会出现长时间的等待。
 
+​		异步操作的例子可以是在定时回调中执行一次简单的数学计算：
+
+```
+let x = 3; 
+setTimeout(() => x = x + 4, 1000);
+```
+
+​		异步代码不容易推断。虽然这个例子对应的低级代码最终跟前面的例子没什么区别，但第二个指令块（加操作及赋值操作）是由系统计时器触发的，这会生成一个入队执行的中断。什么时候触发中断，这对 JavaScript 运行时来说是一个黑盒，因此实际上无法预知（尽管可以保证这发生在当前线程的同步代码执行之后，否则回调都没有机会出列被执行）。
+
+​		为了让后续代码能够使用 x，异步执行的函数需要在更新 x 的值以后通知其他代码。如果程序不需要这个值，那么就只管继续执行，不必等待这个结果了。
+
+
+
+##### 2 以往的异步编程模式
+
+​		在早期的 JavaScript 中，只支持定义回调函数来表明异步操作完成。串联多个异步操作是一个常见的问题，通常需要深度嵌套的回调函数（俗称“回调地狱”）来解决。
+
+​		假设有以下异步函数，使用了 setTimeout 在一秒钟之后执行某些操作：
+
+```
+function double(value) { 
+ 	setTimeout(() => setTimeout(console.log, 0, value * 2), 1000); 
+} 
+double(3); 
+// 6（大约 1000 毫秒之后）
+```
+
+
+
+###### （1）异步返回值
+
+​		广泛接受的一个策略是给异步操作提供一个回调，这个回调中包含要使用异步返回值的代码（作为回调的参数）。
+
+```
+function double(value, callback) { 
+ 	setTimeout(() => callback(value * 2), 1000); 
+} 
+double(3, (x) => console.log(`I was given: ${x}`)); 
+// I was given: 6（大约 1000 毫秒之后）
+```
+
+位于函数闭包中的回调及其参数在异步执行时仍然是可用的。
+
+
+
+###### （2）失败处理
+
+​		异步操作的失败处理在回调模型中也要考虑，因此自然就出现了成功回调和失败回调：
+
+```
+function double(value, success, failure) { 
+ 	setTimeout(() => { 
+ 		try { 
+ 			if (typeof value !== 'number') { 
+ 				throw 'Must provide number as first argument'; 
+ 			} 
+ 			success(2 * value); 
+ 		} catch (e) { 
+ 			failure(e); 
+ 		} 
+ 	}, 1000); 
+} 
+const successCallback = (x) => console.log(`Success: ${x}`); 
+const failureCallback = (e) => console.log(`Failure: ${e}`); 
+
+double(3, successCallback, failureCallback); 
+double('b', successCallback, failureCallback); 
+// Success: 6（大约 1000 毫秒之后）
+// Failure: Must provide number as first argument（大约 1000 毫秒之后）
+```
+
+​		这种模式已经不可取了，因为必须在初始化异步操作时定义回调。异步函数的返回值只在短时间内存在，只有预备好将这个短时间内存在的值作为参数的回调才能接收到它。
+
+
+
+###### （3）嵌套异步回调
+
+​		如果异步返值又依赖另一个异步返回值，那么回调的情况还会进一步变复杂。在实际的代码中，这就要求嵌套回调：
+
+```
+function double(value, success, failure) { 
+ 	setTimeout(() => { 
+ 		try { 
+ 			if (typeof value !== 'number') { 
+ 				throw 'Must provide number as first argument'; 
+ 			} 
+ 			success(2 * value); 
+ 		} catch (e) { 
+ 			failure(e); 
+ 		} 
+ 	}, 1000);
+} 
+const successCallback = (x) => { 
+ 	double(x, (y) => console.log(`Success: ${y}`)); 
+}; 
+const failureCallback = (e) => console.log(`Failure: ${e}`); 
+double(3, successCallback, failureCallback); 
+// Success: 12（大约 1000 毫秒之后）
+```
+
+​		随着代码越来越复杂，回调策略是不具有扩展性的。“回调地狱”这个称呼可谓名至实归。嵌套回调的代码维护起来就是噩梦。
 
 
 
 
 
+#### 2.期约
+
+​		期约是对尚不存在结果的一个替身。期约（promise）这个名字最早是由 Daniel Friedman和 David Wise 在他们于 1976 年发表的论文“The Impact of Applicative Programming on Multiprocessing”中提出来的。
 
 
 
+##### 1 Promises/A+规范
+
+​		早期的期约机制在 jQuery 和 Dojo 中是以 Deferred API 的形式出现的。。到了 2010 年，CommonJS 项目实现的 Promises/A 规范日益流行起来。 和 Bluebird 等第三方 JavaScript 期约库也越来越得到社区认可，虽然这些库的实现多少都有些不同。为弥合现有实现之间的差异，2012 年 Promises/A+组织分叉（fork） 了 CommonJS 的 Promises/A 建议，并以相同的名字制定了 Promises/A+规范。这个规范最终成为了ECMAScript 6 规范实现的范本。
+
+​		ECMAScript 6 增加了对 Promises/A+规范的完善支持，即 Promise 类型。一经推出，Promise 就大受欢迎，成为了主导性的异步编程机制。所有现代浏览器都支持 ES6 期约，很多其他浏览器 API（如fetch()和 Battery Status API）也以期约为基础。
 
 
 
+##### 2 期约基础
+
+​		ECMAScript 6 新增的引用类型 Promise，可以通过 new 操作符来实例化。创建新期约时需要传入执行器（executor）函数作为参数（后面马上会介绍），下面的例子使用了一个空函数对象来应付一下解释器：
+
+```
+let p = new Promise(() => {}); 
+setTimeout(console.log, 0, p); // Promise <pending>
+```
+
+​		之所以说是应付解释器，是因为如果不提供执行器函数，就会抛出 SyntaxError。
 
 
 
+###### （1）期约状态机
+
+​		在把一个期约实例传给 console.log()时，控制台输出（可能因浏览器不同而略有差异）表明该实例处于待定（pending）状态。如前所述，期约是一个有状态的对象，可能处于如下 3 种状态之一：
+
+​		 待定（pending） 
+
+​		 兑现（fulfilled，有时候也称为“解决”，resolved） 
+
+​		 拒绝（rejected）
+
+**待定**：（pending）是期约的最初始状态。
+
+**兑换与拒绝：**在待定状态下，期约可以落定（settled）为代表成功的兑现（fulfilled）状态，或者代表失败的拒绝					（rejected）状态。
 
 
 
+​		无论落定为哪种状态都是不可逆的。只要从待定转换为兑现或拒绝，期约的状态就不再改变。而且，也不能保证期约必然会脱离待定状态。因此，组织合理的代码无论期约解决（resolve）还是拒绝（reject），甚至永远处于待定（pending）状态，都应该具有恰当的行为。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+​		重要的是，期约的状态是私有的，不能直接通过 JavaScript 检测到。这主要是为了避免根据读取到的期约状态，以同步方式处理期约对象。另外，期约的状态也不能被外部 JavaScript 代码修改。这与不能读取该状态的原因是一样的：期约故意将异步行为封装起来，从而隔离外部的同步代码。
 
 
 
