@@ -14324,6 +14324,393 @@ console.log('3: synchronousResolve() returns');
 
 ​		在这个例子中，即使期约状态变化发生在添加处理程序之后，处理程序也会等到运行的消息队列让它出列时才会执行。
 
+​		非重入适用于 onResolved/onRejected 处理程序、catch()处理程序和 finally()处理程序。下面的例子演示了这些处理程序都只能异步执行：
+
+```
+let p1 = Promise.resolve(); 
+p1.then(() => console.log('p1.then() onResolved')); 
+console.log('p1.then() returns');
+
+let p2 = Promise.reject(); 
+p2.then(null, () => console.log('p2.then() onRejected')); 
+console.log('p2.then() returns');
+
+let p3 = Promise.reject(); 
+p3.catch(() => console.log('p3.catch() onRejected')); 
+console.log('p3.catch() returns'); 
+
+let p4 = Promise.resolve(); 
+p4.finally(() => console.log('p4.finally() onFinally')); 
+console.log('p4.finally() returns'); 
+
+// p1.then() returns 
+// p2.then() returns 
+// p3.catch() returns 
+// p4.finally() returns 
+// p1.then() onResolved 
+// p2.then() onRejected 
+// p3.catch() onRejected 
+// p4.finally() onFinally
+```
+
+
+
+###### （6）邻近处理程序的执行顺序
+
+​		如果给期约添加了多个处理程序，当期约状态变化时，相关处理程序会按照添加它们的顺序依次执行。无论是 then()、catch()还是 finally()添加的处理程序都是如此。
+
+```
+let p1 = Promise.resolve(); 
+let p2 = Promise.reject(); 
+p1.then(() => setTimeout(console.log, 0, 1)); 
+p1.then(() => setTimeout(console.log, 0, 2)); 
+// 1 
+// 2 
+
+p2.then(null, () => setTimeout(console.log, 0, 3)); 
+p2.then(null, () => setTimeout(console.log, 0, 4)); 
+// 3 
+// 4 
+
+p2.catch(() => setTimeout(console.log, 0, 5)); 
+p2.catch(() => setTimeout(console.log, 0, 6)); 
+// 5 
+// 6 
+
+p1.finally(() => setTimeout(console.log, 0, 7)); 
+p1.finally(() => setTimeout(console.log, 0, 8)); 
+// 7 
+// 8
+```
+
+
+
+###### （7）传递解决值和拒绝理由
+
+​		到了落定状态后，期约会提供其解决值（如果兑现）或其拒绝理由（如果拒绝）给相关状态的处理程序。拿到返回值后，就可以进一步对这个值进行操作。
+
+​		在执行函数中，解决的值和拒绝的理由是分别作为 resolve()和 reject()的第一个参数往后传的。然后，这些值又会传给它们各自的处理程序，作为 onResolved 或 onRejected 处理程序的唯一参数。
+
+```
+let p1 = new Promise((resolve, reject) => resolve('foo')); 
+p1.then((value) => console.log(value)); // foo 
+
+let p2 = new Promise((resolve, reject) => reject('bar')); 
+p2.catch((reason) => console.log(reason)); // bar
+```
+
+​		Promise.resolve()和 Promise.reject()在被调用时就会接收解决值和拒绝理由。同样地，它们返回的期约也会像执行器一样把这些值传给 onResolved 或 onRejected 处理程序：
+
+```
+let p1 = Promise.resolve('foo'); 
+p1.then((value) => console.log(value)); // foo 
+
+let p2 = Promise.reject('bar'); 
+p2.catch((reason) => console.log(reason)); // bar
+```
+
+
+
+###### （8）拒绝期约与拒绝错误处理
+
+​		拒绝期约类似于 throw()表达式，因为它们都代表一种程序状态，即需要中断或者特殊处理。在期约的执行函数或处理程序中抛出错误会导致拒绝，对应的错误对象会成为拒绝的理由。因此以下这些期约都会以一个错误对象为由被拒绝：
+
+```
+let p1 = new Promise((resolve, reject) => reject(Error('foo'))); 
+let p2 = new Promise((resolve, reject) => { throw Error('foo'); }); 
+let p3 = Promise.resolve().then(() => { throw Error('foo'); }); 
+let p4 = Promise.reject(Error('foo')); 
+
+setTimeout(console.log, 0, p1); // Promise <rejected>: Error: foo 
+setTimeout(console.log, 0, p2); // Promise <rejected>: Error: foo 
+setTimeout(console.log, 0, p3); // Promise <rejected>: Error: foo 
+setTimeout(console.log, 0, p4); // Promise <rejected>: Error: foo
+
+// 也会抛出 4 个未捕获错误
+```
+
+​		期约可以以任何理由拒绝，包括 undefined，但最好统一使用错误对象。这样做主要是因为创建错误对象可以让浏览器捕获错误对象中的栈追踪信息，而这些信息对调试是非常关键的。前面例子中抛出的 4 个错误的栈追踪信息如下：
+
+```
+Uncaught (in promise) Error: foo 
+ at Promise (test.html:5) 
+ at new Promise (<anonymous>) 
+ at test.html:5 
+Uncaught (in promise) Error: foo 
+ at Promise (test.html:6) 
+ at new Promise (<anonymous>) 
+ at test.html:6 
+Uncaught (in promise) Error: foo 
+ at test.html:8 
+Uncaught (in promise) Error: foo 
+ at Promise.resolve.then (test.html:7)
+```
+
+​		所有错误都是异步抛出且未处理的，通过错误对象捕获的栈追踪信息展示了错误发生的路径。注意错误的顺序：Promise.resolve().then()的错误最后才出现，这是因为它需要在运行时消息队列中添加处理程序；也就是说，在最终抛出未捕获错误之前它还会创建另一个期约。
+
+​		**这个例子同样揭示了异步错误有意思的副作用。正常情况下，在通过 throw()关键字抛出错误时，JavaScript 运行时的错误处理机制会停止执行抛出错误之后的任何指令。**
+
+```
+throw Error('foo'); 
+console.log('bar'); // 这一行不会执行
+// Uncaught Error: foo
+```
+
+​		但是，在期约中抛出错误时，因为错误实际上是从消息队列中异步抛出的，所以并不会阻止运行时继续执行同步指令。
+
+​		**异步错误只能通过异步的 onRejected 处理程序捕获。**
+
+```
+// 正确 
+Promise.reject(Error('foo')).catch((e) => {});
+```
+
+​		这不包括捕获执行函数中的错误，在解决或拒绝期约之前，仍然可以使用 try/catch 在执行函数中捕获错误。
+
+```
+let p = new Promise((resolve, reject) => { 
+ 	try { 
+ 		throw Error('foo'); 
+ 	} catch(e) {} 
+ 	resolve('bar'); 
+}); 
+setTimeout(console.log, 0, p); // Promise <resolved>: bar
+```
+
+
+
+​		then()和 catch()的 onRejected 处理程序在语义上相当于 try/catch。出发点都是捕获错误之后将其隔离，同时不影响正常逻辑执行。为此，onRejected 处理程序的任务应该是在捕获异步错误之后返回一个解决的期约。下面的例子中对比了同步错误处理与异步错误处理：
+
+```
+console.log('begin synchronous execution'); 
+try { 
+ 	throw Error('foo'); 
+} catch(e) { 
+ 	console.log('caught error', e); 
+} 
+console.log('continue synchronous execution'); 
+// begin synchronous execution 
+// caught error Error: foo 
+// continue synchronous execution 
+
+
+new Promise((resolve, reject) => { 
+ 	console.log('begin asynchronous execution'); 
+ 	reject(Error('bar')); 
+}).catch((e) => { 
+ 	console.log('caught error', e); 
+}).then(() => { 
+ 	console.log('continue asynchronous execution'); 
+}); 
+// begin asynchronous execution 
+// caught error Error: bar 
+// continue asynchronous execution
+```
+
+
+
+##### 4 期约连锁与期约合成
+
+​		多个期约组合在一起可以构成强大的代码逻辑。这种组合可以通过两种方式实现：期约连锁与期约合成。前者就是一个期约接一个期约地拼接，后者则是将多个期约组合为一个期约。
+
+###### （1）期约连锁
+
+​		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
