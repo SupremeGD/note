@@ -14515,55 +14515,382 @@ new Promise((resolve, reject) => {
 
 ###### （1）期约连锁
 
+​		把期约逐个地串联起来是一种非常有用的编程模式。之所以可以这样做，是因为每个期约实例的方法（then()、catch()和 finally()）都会返回一个新的期约对象，而这个新期约又有自己的实例方法。这样连缀方法调用就可以构成所谓的“期约连锁”。
+
+```
+let p = new Promise((resolve, reject) => { 
+ 	console.log('first'); 
+ 	resolve(); 
+}); 
+p.then(() => console.log('second')) 
+ .then(() => console.log('third')) 
+ .then(() => console.log('fourth')); 
+// first 
+// second 
+// third 
+// fourth
+```
+
+​		这个实现最终执行了一连串同步任务。正因为如此，这种方式执行的任务没有那么有用，毕竟分别使用 4 个同步函数也可以做到。
+
+
+
+​		要真正执行异步任务，可以改写前面的例子，让每个执行器都返回一个期约实例。这样就可以让每个后续期约都等待之前的期约，也就是串行化异步任务。
+
+```
+let p1 = new Promise((resolve, reject) => { 
+ 	console.log('p1 executor'); 
+ 	setTimeout(resolve, 1000); 
+}); 
+p1.then(() => new Promise((resolve, reject) => { 
+ 	console.log('p2 executor'); 
+ 	setTimeout(resolve, 1000); 
+ })) 
+ .then(() => new Promise((resolve, reject) => { 
+ 	console.log('p3 executor'); 
+ 	setTimeout(resolve, 1000); 
+ })) 
+ .then(() => new Promise((resolve, reject) => { 
+ 	console.log('p4 executor'); 
+ 	setTimeout(resolve, 1000); 
+ })); 
+// p1 executor（1 秒后）
+// p2 executor（2 秒后）
+// p3 executor（3 秒后）
+// p4 executor（4 秒后）
+```
+
+​		把生成期约的代码提取到一个工厂函数中，就可以写成这样：
+
+```
+function delayedResolve(str) { 
+ 	return new Promise((resolve, reject) => { 
+ 		console.log(str); 
+ 		setTimeout(resolve, 1000); 
+ 	}); 
+}
+delayedResolve('p1 executor') 
+ .then(() => delayedResolve('p2 executor')) 
+ .then(() => delayedResolve('p3 executor')) 
+ .then(() => delayedResolve('p4 executor')) 
+// p1 executor（1 秒后）
+// p2 executor（2 秒后）
+// p3 executor（3 秒后）
+// p4 executor（4 秒后）
+```
+
+​		每个后续的处理程序都会等待前一个期约解决，然后实例化一个新期约并返回它。这种结构可以简洁地将异步任务串行化，解决之前依赖回调的难题。
+
+
+
+​		因为 then()、catch()和 finally()都返回期约，所以串联这些方法也很直观。下面的例子同时使用这 3 个实例方法：
+
+```
+let p = new Promise((resolve, reject) => { 
+ 	console.log('initial promise rejects'); 
+ 	reject(); 
+}); 
+p.catch(() => console.log('reject handler')) 
+ .then(() => console.log('resolve handler')) 
+ .finally(() => console.log('finally handler')); 
+// initial promise rejects 
+// reject handler 
+// resolve handler 
+// finally handler
+```
+
+
+
+###### （2）期约图
+
+​		因为一个期约可以有任意多个处理程序，所以期约连锁可以构建有向非循环图的结构。这样，每个期约都是图中的一个节点，而使用实例方法添加的处理程序则是有向顶点。因为图中的每个节点都会等待前一个节点落定，所以图的方向就是期约的解决或拒绝顺序。
+
+下面的例子展示了一种期约有向图，也就是二叉树：
+
+```
+//  A 
+// / \ 
+// B  C 
+// /\ /\ 
+// D E F G 
+let A = new Promise((resolve, reject) => { 
+ 	console.log('A'); 
+ 	resolve(); 
+}); 
+let B = A.then(() => console.log('B')); 
+let C = A.then(() => console.log('C')); 
+B.then(() => console.log('D')); 
+B.then(() => console.log('E')); 
+C.then(() => console.log('F')); 
+C.then(() => console.log('G')); 
+// A 
+// B 
+// ...
+```
+
+
+
+###### （3）Promise.all() 和 Promise.race()
+
+​		Promise 类提供两个将多个期约实例组合成一个期约的静态方法：Promise.all()和 Promise.race()。而合成后期约的行为取决于内部期约的行为。
+
 ​		
 
+**Promise.all()**
+
+​		Promise.all()静态方法创建的期约会在一组期约全部解决之后再解决。这个静态方法接收一个可迭代对象，返回一个新期约：
+
+```
+let p1 = Promise.all([ 
+ 	Promise.resolve(), 
+ 	Promise.resolve() 
+]); 
+// 可迭代对象中的元素会通过 Promise.resolve()转换为期约
+let p2 = Promise.all([3, 4]); 
+// 空的可迭代对象等价于 Promise.resolve() 
+let p3 = Promise.all([]); 
+// 无效的语法
+let p4 = Promise.all(); 
+// TypeError: cannot read Symbol.iterator of undefined
+```
+
+​		合成的期约只会在每个包含的期约都解决之后才解决。
+
+​		如果至少有一个包含的期约待定，则合成的期约也会待定。如果有一个包含的期约拒绝，则合成的期约也会拒绝：
+
+```
+// 永远待定
+let p1 = Promise.all([new Promise(() => {})]); 
+setTimeout(console.log, 0, p1); // Promise <pending> 
+// 一次拒绝会导致最终期约拒绝
+let p2 = Promise.all([ 
+ 	Promise.resolve(), 
+ 	Promise.reject(), 
+ 	Promise.resolve() 
+]); 
+setTimeout(console.log, 0, p2); // Promise <rejected> 
+// Uncaught (in promise) undefined
+```
+
+​		如果所有期约都成功解决，则合成期约的解决值就是所有包含期约解决值的数组，按照迭代器顺序。
+
+
+
+​		如果有期约拒绝，则第一个拒绝的期约会将自己的理由作为合成期约的拒绝理由。之后再拒绝的期约不会影响最终期约的拒绝理由。不过，这并不影响所有包含期约正常的拒绝操作。合成的期约会静默处理所有包含期约的拒绝操作。
+
+```
+// 虽然只有第一个期约的拒绝理由会进入 
+// 拒绝处理程序，第二个期约的拒绝也
+// 会被静默处理，不会有错误跑掉
+let p = Promise.all([ 
+ 	Promise.reject(3), 
+ 	new Promise((resolve, reject) => setTimeout(reject, 1000)) 
+]); 
+p.catch((reason) => setTimeout(console.log, 0, reason)); // 3 
+// 没有未处理的错误
+```
+
+
+
+**Promise.race()**
+
+​		Promise.race()静态方法返回一个包装期约，是一组集合中最先解决或拒绝的期约的镜像。这个方法接收一个可迭代对象，返回一个新期约：
+
+```
+let p1 = Promise.race([ 
+ 	Promise.resolve(), 
+ 	Promise.resolve() 
+]); 
+// 可迭代对象中的元素会通过 Promise.resolve()转换为期约
+let p2 = Promise.race([3, 4]); 
+// 空的可迭代对象等价于 new Promise(() => {}) 
+let p3 = Promise.race([]); 
+// 无效的语法
+let p4 = Promise.race(); 
+// TypeError: cannot read Symbol.iterator of undefined
+```
+
+
+
+​		Promise.race()不会对解决或拒绝的期约区别对待。无论是解决还是拒绝，只要是第一个落定的期约，Promise.race()就会包装其解决值或拒绝理由并返回新期约：
+
+```
+// 解决先发生，超时后的拒绝被忽略
+let p1 = Promise.race([ 
+ 	Promise.resolve(3), 
+ 	new Promise((resolve, reject) => setTimeout(reject, 1000)) 
+]); 
+setTimeout(console.log, 0, p1); // Promise <resolved>: 3 
+// 拒绝先发生，超时后的解决被忽略
+let p2 = Promise.race([ 
+ 	Promise.reject(4), 
+ 	new Promise((resolve, reject) => setTimeout(resolve, 1000)) 
+]); 
+setTimeout(console.log, 0, p2); // Promise <rejected>: 4 
+// 迭代顺序决定了落定顺序
+let p3 = Promise.race([ 
+ 	Promise.resolve(5), 
+ 	Promise.resolve(6), 
+ 	Promise.resolve(7) 
+]); 
+setTimeout(console.log, 0, p3); // Promise <resolved>: 5
+```
+
+
+
+​		如果有一个期约拒绝，只要它是第一个落定的，就会成为拒绝合成期约的理由。之后再拒绝的期约不会影响最终期约的拒绝理由。不过，这并不影响所有包含期约正常的拒绝操作。与 Promise.all()类似，合成的期约会静默处理所有包含期约的拒绝操作。
+
+```
+// 虽然只有第一个期约的拒绝理由会进入
+// 拒绝处理程序，第二个期约的拒绝也
+// 会被静默处理，不会有错误跑掉
+let p = Promise.race([ 
+ 	Promise.reject(3), 
+ 	new Promise((resolve, reject) => setTimeout(reject, 1000)) 
+]); 
+p.catch((reason) => setTimeout(console.log, 0, reason)); // 3 
+// 没有未处理的错误
+```
+
+
+
+###### （4）串行期约合成
+
+​		到目前为止，我们讨论期约连锁一直围绕期约的串行执行，忽略了期约的另一个主要特性：异步产生值并将其传给处理程序。基于后续期约使用之前期约的返回值来串联期约是期约的基本功能。这很像函数合成，即将多个函数合成为一个函数。
+
+```
+function addTwo(x) {return x + 2;} 
+function addThree(x) {return x + 3;} 
+function addFive(x) {return x + 5;} 
+function addTen(x) { 
+ 	return addFive(addTwo(addThree(x))); 
+} 
+console.log(addTen(7)); // 17
+
+也可以合起来
+function addTen(x) { 
+ 	return Promise.resolve(x) 
+ 		.then(addTwo) 
+ 		.then(addThree) 
+ 		.then(addFive); 
+}
+```
+
+​		使用 Array.prototype.reduce()可以写成更简洁的形式：
+
+```
+function addTwo(x) {return x + 2;} 
+function addThree(x) {return x + 3;} 
+function addFive(x) {return x + 5;} 
+function addTen(x) { 
+ 	return [addTwo, addThree, addFive] 
+ 		.reduce((promise, fn) => promise.then(fn), Promise.resolve(x)); 
+} 
+addTen(8).then(console.log); // 18
+```
+
+​		这种模式可以提炼出一个通用函数，可以把任意多个函数作为处理程序合成一个连续传值的期约连锁。这个通用的合成函数可以这样实现：
+
+```
+function addTwo(x) {return x + 2;} 
+function addThree(x) {return x + 3;} 
+function addFive(x) {return x + 5;} 
+function compose(...fns) { 
+ 	return (x) => fns.reduce((promise, fn) => promise.then(fn), Promise.resolve(x)) 
+} 
+let addTen = compose(addTwo, addThree, addFive);
+addTen(8).then(console.log); // 18
+```
 
 
 
 
 
+##### 5 期约扩展
+
+​		ES6 期约实现是很可靠的，但它也有不足之处。很多第三方期约库实现中具备而 ECMAScript规范却未涉及的两个特性：期约取消和进度追踪。
+
+###### （1）期约取消
+
+​		我们经常会遇到期约正在处理过程中，程序却不再需要其结果的情形。这时候如果能够取消期约就好了。ES6 期约被认为是“激进的”：只要期约的逻辑开始执行，就没有办法阻止它执行到完成。
+
+​		实际上，可以在现有实现基础上提供一种临时性的封装，以实现取消期约的功能。这可以用到 Kevin Smith 提到的“取消令牌” 生成的令牌实例提供了一个接口，利用这个接口可以取消期约；同时也提供了一个期约的实例，可以用来触发取消后的操作并求值取消状态。
+
+```
+下面是 CancelToken 类的一个基本实例：
+class CancelToken { 
+ 	constructor(cancelFn) { 
+ 		this.promise = new Promise((resolve, reject) => { 
+ 			cancelFn(resolve); 
+ 		}); 
+ 	} 
+}
+```
+
+​		这个类包装了一个期约，把解决方法暴露给了 cancelFn 参数。这样，外部代码就可以向构造函数中传入一个函数，从而控制什么情况下可以取消期约。这里期约是令牌类的公共成员，因此可以给它添加处理程序以取消期约。
+
+​		这个类大概可以这样使用：
+
+```
+<button id="start">Start</button> 
+<button id="cancel">Cancel</button>
+
+<script> 
+class CancelToken { 
+ 	constructor(cancelFn) { 
+ 		this.promise = new Promise((resolve, reject) => { 
+ 			cancelFn(() => { 
+ 				setTimeout(console.log, 0, "delay cancelled"); 
+ 				resolve(); 
+ 			}); 
+ 		}); 
+ 	} 
+} 
+const startButton = document.querySelector('#start'); 
+const cancelButton = document.querySelector('#cancel'); 
+function cancellableDelayedResolve(delay) { 
+ 	setTimeout(console.log, 0, "set delay"); 
+ 	return new Promise((resolve, reject) => { 
+ 		const id = setTimeout((() => { 
+ 			setTimeout(console.log, 0, "delayed resolve"); 
+ 			resolve(); 
+		}), delay);
+		const cancelToken = new CancelToken((cancelCallback) => 
+ 			cancelButton.addEventListener("click", cancelCallback)); 
+ 		cancelToken.promise.then(() => clearTimeout(id)); 
+	}); 
+} 
+startButton.addEventListener("click", () => cancellableDelayedResolve(1000)); 
+</script>
+```
+
+​		每次单击“Start”按钮都会开始计时，并实例化一个新的 CancelToken 的实例。此时，“Cancel” 按钮一旦被点击，就会触发令牌实例中的期约解决。而解决之后，单击“Start”按钮设置的超时也会被取消。
 
 
 
+###### （2）期约进度通知
 
+​		执行中的期约可能会有不少离散的“阶段”，在最终解决之前必须依次经过。某些情况下，监控期约的执行进度会很有用。ECMAScript 6 期约并不支持进度追踪，但是可以通过扩展来实现。
 
+​		一种实现方式是扩展 Promise 类，为它添加 notify()方法。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
+class TrackablePromise extends Promise { 
+ 	constructor(executor) { 
+ 		const notifyHandlers = []; 
+ 		super((resolve, reject) => { 
+ 			return executor(resolve, reject, (status) => { 
+ 				notifyHandlers.map((handler) => handler(status)); 
+ 			}); 
+ 		}); 
+ 		this.notifyHandlers = notifyHandlers; 
+ 	} 
+ 	notify(notifyHandler) { 
+ 		this.notifyHandlers.push(notifyHandler); 
+ 		return this; 
+ 	} 
+}
+```
 
 
 
