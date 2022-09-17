@@ -14892,107 +14892,687 @@ class TrackablePromise extends Promise {
 }
 ```
 
+​		这样，TrackablePromise 就可以在执行函数中使用 notify()函数了。
 
+​		每个超时回调都会调用notify()并传入状态值。假设通知处理程序简单地这样写：
 
+```
+... 
+let p = new TrackablePromise((resolve, reject, notify) => { 
+ 	function countdown(x) { 
+ 		if (x > 0) { 
+ 			notify(`${20 * x}% remaining`); 
+ 			setTimeout(() => countdown(x - 1), 1000); 
+ 		} else { 
+ 			resolve(); 
+ 		} 
+ 	} 
+ 	countdown(5); 
+}); 
+p.notify((x) => setTimeout(console.log, 0, 'progress:', x)); 
+p.then(() => setTimeout(console.log, 0, 'completed')); 
+// （约 1 秒后）80% remaining 
+// （约 2 秒后）60% remaining 
+// （约 3 秒后）40% remaining 
+// （约 4 秒后）20% remaining 
+// （约 5 秒后）completed
+```
 
+​		notify()函数会返回期约，所以可以连缀调用，连续添加处理程序。多个处理程序会针对收到的每条消息分别执行一遍，如下所示：
 
+```
+... 
+p.notify((x) => setTimeout(console.log, 0, 'a:', x)) 
+ .notify((x) => setTimeout(console.log, 0, 'b:', x)); 
+p.then(() => setTimeout(console.log, 0, 'completed')); 
+// （约 1 秒后） a: 80% remaining 
+// （约 1 秒后） b: 80% remaining 
+// （约 2 秒后） a: 60% remaining 
+// （约 2 秒后） b: 60% remaining 
+// （约 3 秒后） a: 40% remaining 
+// （约 3 秒后） b: 40% remaining 
+// （约 4 秒后） a: 20% remaining 
+// （约 4 秒后） b: 20% remaining 
+// （约 5 秒后） completed
+```
 
+**注意**
 
+​		**ES6 不支持取消期约和进度通知，一个主要原因就是这样会导致期约连锁和期约合成过度复杂化。比如在一个期约连锁中，如果某个被其他期约依赖的期约被取消了或者发出了通知，那么接下来应该发生什么完全说不清楚。**
 
 
 
 
 
+#### 3.异步函数
 
+​		异步函数，也称为“async/await”（语法关键字），是 ES6 期约模式在 ECMAScript 函数中的应用。async/await 是 ES8 规范新增的。这个特性从行为和语法上都增强了 JavaScript，让以同步方式写的代码能够异步执行。下面来看一个最简单的例子，这个期约在超时之后会解决为一个值：
 
+```
+let p = new Promise((resolve, reject) => setTimeout(resolve, 1000, 3));
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+这个期约在 1000 毫秒之后解决为数值 3。如果程序中的其他代码要在这个值可用时访问它，则需要写一个解决处理程序：
+p.then((x) => console.log(x)); // 3
+```
+
+​		可以把处理程序定义为一个函数：
+
+```
+function handler(x) { console.log(x); } 
+let p = new Promise((resolve, reject) => setTimeout(resolve, 1000, 3)); 
+p.then(handler); // 3
+```
+
+代码照样还是要放到处理程序里。ES8 为此提供了 async/await 关键字。
+
+
+
+
+
+##### 1 异步函数
+
+​		ES8 的 async/await 旨在解决利用异步结构组织代码的问题。为此，ECMAScript 对函数进行了扩展，为其增加了两个新关键字：async 和 await。
+
+###### （1）async
+
+​		async 关键字用于声明异步函数。这个关键字可以用在函数声明、函数表达式、箭头函数和方法上：
+
+```
+async function foo() {} 
+let bar = async function() {}; 
+let baz = async () => {}; 
+class Qux { 
+ 	async qux() {} 
+}
+```
+
+​		使用 async 关键字可以让函数具有异步特征，但总体上其代码仍然是同步求值的。而在参数或闭包方面，异步函数仍然具有普通 JavaScript 函数的正常行为。如下面的例子所示，foo()函数仍然会在后面的指令之前被求值：
+
+```
+async function foo() { 
+ 	console.log(1); 
+} 
+foo(); 
+console.log(2); 
+// 1 
+// 2
+```
+
+
+
+​		异步函数如果使用 return 关键字返回了值（如果没有 return 则会返回 undefined），这个值会被 Promise.resolve()包装成一个期约对象。异步函数始终返回期约对象。在函数外部调用这个函数可以得到它返回的期约：
+
+```
+async function foo() { 
+ 	console.log(1); 
+ 	return 3; 
+} 
+// 给返回的期约添加一个解决处理程序
+foo().then(console.log);
+console.log(2); 
+// 1 
+// 2 
+// 3 
+
+
+当然，直接返回一个期约对象也是一样的：
+async function foo() { 
+ 	console.log(1); 
+ 	return Promise.resolve(3); 
+} 
+// 给返回的期约添加一个解决处理程序
+foo().then(console.log); 
+console.log(2); 
+// 1 
+// 2 
+// 3
+```
+
+
+
+​		异步函数的返回值期待（但实际上并不要求）一个实现 thenable 接口的对象，但常规的值也可以。如果返回的是实现 thenable 接口的对象，则这个对象可以由提供给 then()的处理程序“解包”。如果不是，则返回值就被当作已经解决的期约。
+
+```
+// 返回一个原始值 
+async function foo() { 
+ 	return 'foo'; 
+} 
+foo().then(console.log); 
+// foo
+
+// 返回一个没有实现 thenable 接口的对象
+async function bar() { 
+ 	return ['bar']; 
+} 
+bar().then(console.log); 
+// ['bar']
+
+// 返回一个实现了 thenable 接口的非期约对象
+async function baz() { 
+ 	const thenable = { 
+ 		then(callback) { callback('baz'); } 
+ 	}; 
+ 	return thenable; 
+} 
+baz().then(console.log); 
+// baz
+
+// 返回一个期约
+async function qux() { 
+ 	return Promise.resolve('qux'); 
+} 
+qux().then(console.log); 
+// qux
+```
+
+​		与在期约处理程序中一样，在异步函数中抛出错误会返回拒绝的期约。
+
+​		不过，拒绝期约的错误不会被异步函数捕获：
+
+```
+async function foo() { 
+ 	console.log(1); 
+ 	Promise.reject(3); 
+} 
+// Attach a rejected handler to the returned promise 
+foo().catch(console.log); 
+console.log(2); 
+// 1 
+// 2 
+// Uncaught (in promise): 3
+```
+
+
+
+###### （2）await
+
+​		因为异步函数主要针对不会马上完成的任务，所以自然需要一种暂停和恢复执行的能力。使用 await 关键字可以暂停异步函数代码的执行，等待期约解决。
+
+```
+let p = new Promise((resolve, reject) => setTimeout(resolve, 1000, 3)); 
+p.then((x) => console.log(x)); // 3
+
+
+使用 async/await 可以写成这样：
+async function foo() { 
+ 	let p = new Promise((resolve, reject) => setTimeout(resolve, 1000, 3)); 
+ 	console.log(await p); 
+} 
+foo(); 
+// 3
+```
+
+​		await 关键字会暂停执行异步函数后面的代码，让出 JavaScript 运行时的执行线程。这个行为与生成器函数中的 yield 关键字是一样的。await 关键字同样是尝试“解包”对象的值，然后将这个值传给表达式，再异步恢复异步函数的执行。
+
+​		await 关键字的用法与 JavaScript 的一元操作一样。它可以单独使用，也可以在表达式中使用。
+
+```
+// 异步打印"foo" 
+async function foo() { 
+ 	console.log(await Promise.resolve('foo')); 
+} 
+foo(); 
+// foo 
+
+// 异步打印"bar" 
+async function bar() { 
+ 	return await Promise.resolve('bar'); 
+} 
+bar().then(console.log); 
+// bar 
+
+// 1000 毫秒后异步打印"baz" 
+async function baz() { 
+ 	await new Promise((resolve, reject) => setTimeout(resolve, 1000)); 
+ 	console.log('baz'); 
+} 
+baz(); 
+// baz（1000 毫秒后）
+```
+
+​		
+
+​		await 关键字期待（但实际上并不要求）一个实现 thenable 接口的对象，但常规的值也可以。如果是实现 thenable 接口的对象，则这个对象可以由 await 来“解包”。如果不是，则这个值就被当作已经解决的期约。
+
+```
+// 等待一个原始值 
+async function foo() { 
+ 	console.log(await 'foo'); 
+} 
+foo(); 
+// foo
+
+
+// 等待一个没有实现 thenable 接口的对象
+async function bar() { 
+ 	console.log(await ['bar']); 
+} 
+bar(); 
+// ['bar']
+
+
+// 等待一个实现了 thenable 接口的非期约对象
+async function baz() { 
+ 	const thenable = { 
+ 		then(callback) { callback('baz'); } 
+ 	}; 
+ 	console.log(await thenable); 
+} 
+baz(); 
+// baz 
+
+
+// 等待一个期约
+async function qux() { 
+ 	console.log(await Promise.resolve('qux')); 
+} 
+qux(); 
+// qux
+```
+
+​		
+
+​		等待会抛出错误的同步操作，会返回拒绝的期约。
+
+​		单独的 Promise.reject()不会被异步函数捕获，而会抛出未捕获错误。不过，对拒绝的期约使用 await 则会释放（unwrap）错误值（将拒绝期约返回）：
+
+```
+async function foo() { 
+ 	console.log(1); 
+ 	await Promise.reject(3); 	**
+ 	console.log(4); // 这行代码不会执行  **
+} 
+// 给返回的期约添加一个拒绝处理程序
+foo().catch(console.log); 
+console.log(2); 
+// 1 
+// 2 
+// 3	**
+```
+
+
+
+###### （3）await 的限制
+
+​		await 关键字必须在异步函数中使用，不能在顶级上下文如<script>标签或模块中使用。不过，定义并立即调用异步函数是没问题的。下面两段代码实际是相同的：
+
+```
+async function foo() { 
+ 	console.log(await Promise.resolve(3)); 
+} 
+foo(); 
+// 3 
+
+
+// 立即调用的异步函数表达式
+(async function() { 
+ 	console.log(await Promise.resolve(3)); 
+})(); 
+// 3
+```
+
+
+
+​		此外，异步函数的特质不会扩展到嵌套函数。因此，await 关键字也只能直接出现在异步函数的定义中。在同步函数内部使用 await 会抛出 SyntaxError。（以下是会出错的例子）
+
+```
+// 不允许：await 出现在了箭头函数中
+function foo() { 
+ 	const syncFn = () => { 
+ 		return await Promise.resolve('foo'); 
+ 	}; 
+ 	console.log(syncFn());
+}
+
+------------// 不允许：await 出现在了同步函数声明中-------------
+function bar() { 
+ 	function syncFn() { 
+ 		return await Promise.resolve('bar'); 
+ 	} 
+ 	console.log(syncFn()); 
+} 
+
+------------------------------------------------
+// 不允许：await 出现在了同步函数表达式中
+function baz() { 
+ 	const syncFn = function() { 
+ 		return await Promise.resolve('baz'); 
+ 	}; 
+ 	console.log(syncFn()); 
+} 
+
+----------------------------------------------
+// 不允许：IIFE 使用同步函数表达式或箭头函数
+function qux() { 
+ 	(function () { console.log(await Promise.resolve('qux')); })(); 
+ 	(() => console.log(await Promise.resolve('qux')))(); 
+}
+```
+
+
+
+
+
+##### 2 停止和恢复执行
+
+​		使用 await 关键字之后的区别其实比看上去的还要微妙一些。下面的例子中按顺序调用了 3 个函数，但它们的输出结果顺序是相反的：
+
+```
+async function foo() { 
+ 	console.log(await Promise.resolve('foo')); 
+} 
+async function bar() { 
+ 	console.log(await 'bar'); 
+} 
+async function baz() { 
+ 	console.log('baz'); 
+} 
+foo(); 
+bar(); 
+baz(); 
+// baz 
+// bar 
+// foo
+```
+
+​		async/await 中真正起作用的是 await。async 关键字，无论从哪方面来看，都不过是一个标识符。毕竟，**异步函数如果不包含 await 关键字，其执行基本上跟普通函数没有什么区别。**
+
+
+
+​		**await 关键字，并非只是等待一个值可用那么简单。JavaScript 运行时在碰到 await 关键字时，会记录在哪里暂停执行。等到 await 右边的值可用了，JavaScript 运行时会向消息队列中推送一个任务，这个任务会恢复异步函数的执行。**
+
+​		即使 await 后面跟着一个立即可用的值，函数的其余部分也会被异步求值。
+
+```
+async function foo() { 
+ 	console.log(2); 
+ 	await null; 
+ 	console.log(4); 
+} 
+console.log(1); 
+foo(); 
+console.log(3); 
+// 1 
+// 2 
+// 3 
+// 4
+```
+
+控制台中输出结果的顺序很好地解释了运行时的工作过程：
+
+(1) 打印 1；
+
+(2) 调用异步函数 foo()；
+
+(3)（在 foo()中）打印 2；
+
+(4)（在 foo()中）await 关键字暂停执行，为立即可用的值 null 向消息队列中添加一个任务；
+
+(5) foo()退出；
+
+(6) 打印 3；
+
+(7) 同步线程的代码执行完毕；
+
+(8) JavaScript 运行时从消息队列中取出任务，恢复异步函数执行；
+
+(9)（在 foo()中）恢复执行，await 取得 null 值（这里并没有使用）；
+
+(10)（在 foo()中）打印 4；
+
+(11) foo()返回。
+
+
+
+​		如果 await 后面是一个期约，为了执行异步函数，实际上会有两个任务被添加到消息队列并被异步求值。下面的例子虽然看起来很反直觉，但它演示了真正的执行顺序：
+
+```
+async function foo() { 
+ 	console.log(2); 
+ 	console.log(await Promise.resolve(8)); 
+ 	console.log(9); 
+} 
+async function bar() {
+	console.log(4); 
+ 	console.log(await 6); 
+ 	console.log(7); 
+} 
+console.log(1); 
+foo(); 
+console.log(3); 
+bar(); 
+console.log(5); 
+// 1 
+// 2 
+// 3 
+// 4 
+// 5 
+// 6 
+// 7 
+// 8 
+// 9
+```
+
+
+
+##### 3 异步函数策略
+
+​		在使用异步函数时，还是有些问题要注意。
+
+###### （1）实现 sleep()
+
+​		很多人在刚开始学习 JavaScript 时，想找到一个类似 Java 中 Thread.sleep()之类的函数，好在程序中加入非阻塞的暂停。以前，这个需求基本上都通过 setTimeout()利用 JavaScript 运行时的行为来实现的。
+
+​		**有了异步函数之后，就不一样了。一个简单的箭头函数就可以实现 sleep()：**
+
+```
+async function sleep(delay) { 
+ 	return new Promise((resolve) => setTimeout(resolve, delay)); 
+} 
+async function foo() { 
+ 	const t0 = Date.now(); 
+ 	await sleep(1500); // 暂停约 1500 毫秒
+ 	console.log(Date.now() - t0); 
+} 
+foo(); 
+// 1502
+```
+
+
+
+###### （2）利用平行执行
+
+​		如果使用 await 时不留心，则很可能错过平行加速的机会。来看下面的例子，其中顺序等待了 5 个随机的超时：
+
+```
+async function randomDelay(id) { 
+ 	// 延迟 0~1000 毫秒
+ 	const delay = Math.random() * 1000; 
+ 	return new Promise((resolve) => setTimeout(() => { 
+ 		console.log(`${id} finished`); 
+ 		resolve(); 
+ 	}, delay)); 
+} 
+/*
+async function foo() { 
+ 	const t0 = Date.now(); 
+ 	await randomDelay(0); 
+ 	await randomDelay(1); 
+ 	await randomDelay(2); 
+ 	await randomDelay(3); 
+ 	await randomDelay(4); 
+ 	console.log(`${Date.now() - t0}ms elapsed`); 
+}
+*/
+使用 for 循环重写：
+async function foo() { 
+ 	const t0 = Date.now(); 
+ 	for (let i = 0; i < 5; ++i) { 
+ 		await randomDelay(i); 
+ 	} 
+ 	console.log(`${Date.now() - t0}ms elapsed`); 
+}
+
+
+foo(); 
+// 0 finished 
+// 1 finished 
+// 2 finished 
+// 3 finished 
+// 4 finished 
+// 877ms elapsed
+```
+
+​		就算这些期约之间没有依赖，异步函数也会依次暂停，等待每个超时完成。这样可以保证执行顺序，但总执行时间会变长。
+
+​		如果顺序不是必需保证的，那么可以先一次性初始化所有期约，然后再分别等待它们的结果。
+
+```
+...
+async function foo() { 
+ 	const t0 = Date.now(); 
+ 	const p0 = randomDelay(0); 
+ 	const p1 = randomDelay(1); 
+ 	const p2 = randomDelay(2); 
+ 	const p3 = randomDelay(3); 
+ 	const p4 = randomDelay(4); 
+ 	await p0; 
+ 	await p1; 
+ 	await p2; 
+ 	await p3; 
+ 	await p4; 
+ 	setTimeout(console.log, 0, `${Date.now() - t0}ms elapsed`); 
+}
+
+用数组和 for 循环再包装一下就是：
+async function foo() { 
+ 	const t0 = Date.now(); 
+ 	const promises = Array(5).fill(null).map((_, i) => randomDelay(i)); 
+ 	for (const p of promises) { 
+ 		await p; 
+ 	} 
+ 	console.log(`${Date.now() - t0}ms elapsed`); 
+}
+...
+```
+
+
+
+​		虽然期约没有按照顺序执行，但 await 按顺序收到了每个期约的值:
+
+```
+...
+async function foo() { 
+ 	const t0 = Date.now(); 
+ 	const promises = Array(5).fill(null).map((_, i) => randomDelay(i)); 
+ 	for (const p of promises) { 
+ 		console.log(`awaited ${await p}`); 
+ 	} 
+ 	console.log(`${Date.now() - t0}ms elapsed`); 
+}
+...
+// 1 finished 
+// 2 finished 
+// 4 finished 
+// 3 finished 
+// 0 finished 
+// awaited 0 
+// awaited 1 
+// awaited 2 
+// awaited 3 
+// awaited 4 
+// 645ms elapsed
+```
+
+
+
+###### （3）串行执行期约
+
+​		使用 async/await，期约连锁会变得很简单：
+
+```
+function addTwo(x) {return x + 2;} 
+function addThree(x) {return x + 3;} 
+function addFive(x) {return x + 5;} 
+async function addTen(x) { 
+ 	for (const fn of [addTwo, addThree, addFive]) { 
+ 		x = await fn(x); 
+ 	} 
+ 	return x; 
+} 
+addTen(9).then(console.log); // 19
+```
+
+​		await 直接传递了每个函数的返回值，结果通过迭代产生。当然，这个例子并没有使用期约，如果要使用期约，则可以把所有函数都改成异步函数。这样它们就都返回期约了。
+
+
+
+###### （4）栈追踪与内存管理
+
+​		期约与异步函数的功能有相当程度的重叠，但它们在内存中的表示则差别很大。下面的例子，它展示了拒绝期约的栈追踪信息：
+
+```
+function fooPromiseExecutor(resolve, reject) { 
+ 	setTimeout(reject, 1000, 'bar'); 
+} 
+function foo() { 
+ 	new Promise(fooPromiseExecutor); 
+}
+foo(); 
+// Uncaught (in promise) bar 
+// setTimeout 
+// setTimeout (async) 
+// fooPromiseExecutor 
+// foo
+```
+
+​		**栈追踪信息应该相当直接地表现 JavaScript 引擎当前栈内存中函数调用之间的嵌套关系。在超时处理程序执行时和拒绝期约时，我们看到的错误信息包含嵌套函数的标识符，那是被调用以创建最初期约实例的函数。**可是，我们知道这些函数已经返回了，因此栈追踪信息中不应该看到它们。
+
+​		这是因为 JavaScript 引擎会在创建期约时尽可能保留完整的调用栈。在抛出错误时，调用栈可以由运行时的错误处理逻辑获取，因而就会出现在栈追踪信息中。当然，这意味着栈追踪信息会占用内存，从而带来一些计算和存储成本。
+
+​		如果在前面的例子中使用的是异步函数，那又会怎样呢？
+
+```
+function fooPromiseExecutor(resolve, reject) { 
+ 	setTimeout(reject, 1000, 'bar'); 
+} 
+async function foo() { 
+ 	await new Promise(fooPromiseExecutor); 
+} 
+foo(); 
+// Uncaught (in promise) bar 
+// foo
+// async function (async) 
+// foo
+```
+
+​		这样一改，栈追踪信息就准确地反映了当前的调用栈。fooPromiseExecutor()已经返回，所以它不在错误信息中。但 foo()此时被挂起了，并没有退出。JavaScript 运行时可以简单地在嵌套函数中存储指向包含函数的指针，就跟对待同步函数调用栈一样。这个指针实际上存储在内存中，可用于在出错时生成栈追踪信息。这样就不会像之前的例子那样带来额外的消耗，因此在重视性能的应用中是可以优先考虑的。
+
+
+
+
+
+#### 4.小结
+
+​		随着 ES6 新增了期约和 ES8 新增了异步函数，ECMAScript 的异步编程特性有了长足的进步。通过期约和 async/await，不仅可以实现之前难以实现或不可能实现的任务，而且也能写出更清晰、简洁，并且容易理解、调试的代码。
+
+​		期约的主要功能是为异步代码提供了清晰的抽象。可以用期约表示异步执行的代码块，也可以用期约表示异步计算的值。在需要串行异步代码时，期约的价值最为突出。是一种可塑造性极强的解构。
+
+​		异步函数是将期约应用于 JavaScript 函数的结果。异步函数可以暂停执行，而不阻塞主线程。
+
+
+
+
+
+## 第12章 BOM
+
+​		虽然 ECMAScript 把浏览器对象模型（BOM，Browser Object Model）描述为 JavaScript 的核心，但实际上 BOM 是使用 JavaScript 开发 Web 应用程序的核心。BOM 提供了与网页无关的浏览器功能对象。HTML5 规范中有一部分涵盖了 BOM 的主要内容，因为 W3C 希望将 JavaScript 在浏览器中最基础的部分标准化。
+
+
+
+#### 1.window 对象
+
+​		BOM 的核心是 window 对象，表示浏览器的实例。window 对象在浏览器中有两重身份，一个是ECMAScript 中的 Global 对象，另一个就是浏览器窗口的 JavaScript 接口。这意味着网页中定义的所有对象、变量和函数都以 window 作为其 Global 对象，都可以访问其上定义的 parseInt()等全局方法。
 
 
 
