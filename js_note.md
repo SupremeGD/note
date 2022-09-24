@@ -16474,6 +16474,365 @@ BOM的内容：
 
 ​		
 
+### 1.能力检测
+
+​		能力检测（又称特性检测）即在 JavaScript 运行时中使用一套简单的检测逻辑，测试浏览器是否支持某种特性。这种方式不要求事先知道特定浏览器的信息，只需检测自己关心的能力是否存在即可。能力检测的基本模式如下：
+
+```
+if (object.propertyInQuestion) { 
+ 	// 使用 object.propertyInQuestion 
+}
+```
+
+​		比如，IE5 之前的版本中没有 document.getElementById()这个 DOM 方法，但可以通过 document.all 属性实现同样的功能。为此，可以进行如下能力检测：
+
+```
+function getElement(id) { 
+ 	if (document.getElementById) { 
+ 		return document.getElementById(id); 
+ 	} else if (document.all) { 
+ 		return document.all[id]; 
+ 	} else { 
+ 		throw new Error("No way to retrieve element!"); 
+ 	} 
+}
+```
+
+​		这个 getElement()函数的目的是根据给定的 ID 获取元素。因为标准的方式是使用 document. getElementById()，所以首先测试它。如果这个函数存在（不是 undefined），那就使用这个方法；否则检测 document.all 是否存在，如果存在则使用。如果这两个能力都不存在（基本上不可能），则抛出错误说明功能无法实现。
+
+​		能力检测的关键是理解两个重要概念。首先，如前所述，应该先检测最常用的方式。在前面的例子中就是先检测 document.getElementById()再检测 document.all。测试最常用的方案可以优化代码执行，这是因为在多数情况下都可以避免无谓检测。
+
+​		其次是必须检测切实需要的特性。某个能力存在并不代表别的能力也存在。如下：
+
+```
+function getWindowWidth() { 
+ 	if (document.all) { // 假设 IE 
+ 		return document.documentElement.clientWidth; // 不正确的用法！
+ 	} else { 
+ 		return window.innerWidth; 
+ 	} 
+}
+```
+
+​		**这个例子展示了不正确的能力检测方式。这个例子的问题在于检测到 document.all 存在并不意味着浏览器是 IE。事实，也可能是某个早期版本的 Opera，既支持 document.all 也支持 windown.innerWidth。**
+
+
+
+
+
+#### 1 安全能力检测
+
+​		能力检测最有效的场景是检测能力是否存在的同时，验证其是否能够展现出预期的行为。前一节中的例子依赖将测试对象的成员转换类型，然后再确定它是否存在。虽然这样能够确定检测的对象成员存在，但不能确定它就是你想要的。下面的例子，这个函数尝试检测某个对象是否可以排序：
+
+```
+// 不要这样做！错误的能力检测，只能检测到能力是否存在
+function isSortable(object) { 
+ 	return !!object.sort; 
+}
+```
+
+​		这个函数尝试通过检测对象上是否有 sort()方法来确定它是否支持排序。问题在于，即使这个对象有一个 sort 属性，这个函数也会返回 true：
+
+```
+let result = isSortable({ sort: true });
+```
+
+​		**简单地测试到一个属性存在并不代表这个对象就可以排序。更好的方式是检测 sort 是不是函数：**
+
+```
+// 好一些，检测 sort 是不是函数
+function isSortable(object) { 
+ 	return typeof object.sort == "function"; 
+}
+```
+
+可以确定 sort 是不是函数，从而确认是否可以调用它对数据进行排序。
+
+
+
+​		
+
+​		进行能力检测时应该尽量使用 typeof 操作符，但光有它还不够。尤其是某些宿主对象并不保证对 typeof 测试返回合理的值。最有名的例子就是 Internet Explorer（IE）。在多数浏览器中，下面的代码都会在 document.createElement()存在时返回 true：
+
+```
+// 不适用于 IE8 及更低版本
+function hasCreateElement() { 
+ 	return typeof document.createElement == "function"; 
+}
+```
+
+​		在 IE8 及更低版本中，这个函数会返回 false。这是因为 typeof document.createElement 返回"object"而非"function"。
+
+​		**DOM 对象是宿主对象，而宿主对象在 IE8 及更低版本中是通过 COM 而非 JScript 实现的。因此，document.createElement()函数被实现为 COM 对象，typeof 返回"object"。IE9 对 DOM 方法会返回"function"。**
+
+
+
+
+
+#### 2 基于能力检测进行浏览器分析
+
+​		**使用能力检测而非用户代理检测的优点在于，伪造用户代理字符串很简单，而伪造能够欺骗能力检测的浏览器特性却很难。**
+
+##### （1）检测特性
+
+​		可以按照能力将浏览器归类。如果你的应用程序需要使用特定的浏览器能力，那么最好集中检测所有能力，而不是等到用的时候再重复检测。
+
+```
+// 检测浏览器是否支持 Netscape 式的插件
+let hasNSPlugins = !!(navigator.plugins && navigator.plugins.length); 
+
+// 检测浏览器是否具有 DOM Level 1 能力
+let hasDOM1 = !!(document.getElementById && document.createElement && 
+ 				 document.getElementsByTagName);
+```
+
+​		**这个例子完成了两项检测：一项是确定浏览器是否支持 Netscape 式的插件，另一项是检测浏览器是否具有 DOM Level 1 能力。**保存在变量中的布尔值可以用在后面的条件语句中，这样比重复检测省事多了。
+
+
+
+##### （2）检测浏览器
+
+​		可以根据对浏览器特性的检测并与已知特性对比，确认用户使用的是什么浏览器。这样可以获得比用户代码嗅探（稍后讨论）更准确的结果。但未来的浏览器版本可能不适用于这套方案。
+
+​		根据不同浏览器独有的行为推断出浏览器的身份。这里故意没有使用 navigator. userAgent 属性，后面会讨论它：
+
+```
+class BrowserDetector { 
+ 	constructor() { 
+ 		// 测试条件编译
+ 		// IE6~10 支持
+ 		this.isIE_Gte6Lte10 = /*@cc_on!@*/false; 
+ 		
+ 		// 测试 documentMode 
+ 		// IE7~11 支持
+ 		this.isIE_Gte7Lte11 = !!document.documentMode;
+ 		
+ 		// 测试 StyleMedia 构造函数
+ 		// Edge 20 及以上版本支持
+ 		this.isEdge_Gte20 = !!window.StyleMedia; 
+ 		
+ 		// 测试 Firefox 专有扩展安装 API 
+ 		// 所有版本的 Firefox 都支持
+ 		this.isFirefox_Gte1 = typeof InstallTrigger !== 'undefined';
+        
+ 		// 测试 chrome 对象及其 webstore 属性
+ 		// Opera 的某些版本有 window.chrome，但没有 window.chrome.webstore 
+ 		// 所有版本的 Chrome 都支持
+ 		this.isChrome_Gte1 = !!window.chrome && !!window.chrome.webstore;
+        
+ 		// Safari 早期版本会给构造函数的标签符追加"Constructor"字样，如：
+ 		// window.Element.toString(); // [object ElementConstructor] 
+ 		// Safari 3~9.1 支持
+ 		this.isSafari_Gte3Lte9_1 = /constructor/i.test(window.Element); 
+ 		
+ 		// 推送通知 API 暴露在 window 对象上
+ 		// 使用默认参数值以避免对 undefined 调用 toString() 
+ 		// Safari 7.1 及以上版本支持
+ 		this.isSafari_Gte7_1 = 
+ 			(({pushNotification = {}} = {}) => 
+ 				pushNotification.toString() == '[object SafariRemoteNotification]' 
+ 			)(window.safari); 
+ 		
+ 		// 测试 addons 属性
+ 		// Opera 20 及以上版本支持
+ 		this.isOpera_Gte20 = !!window.opr && !!window.opr.addons; 
+ 	} 
+ 	isIE() { return this.isIE_Gte6Lte10 || this.isIE_Gte7Lte11; } 
+ 	isEdge() { return this.isEdge_Gte20 && !this.isIE(); } 
+ 	isFirefox() { return this.isFirefox_Gte1; } 
+ 	isChrome() { return this.isChrome_Gte1; } 
+ 	isSafari() { return this.isSafari_Gte3Lte9_1 || this.isSafari_Gte7_1; } 
+ 	isOpera() { return this.isOpera_Gte20; } 
+}
+```
+
+​		**这个类暴露的通用浏览器检测方法使用了检测浏览器范围的能力测试。随着浏览器的变迁及发展，可以不断调整底层检测逻辑，但主要的 API 可以保持不变。**
+
+
+
+
+
+##### 3 能力检测的局限
+
+​		通过检测一种或一组能力，并不总能确定使用的是哪种浏览器。以下“浏览器检测”代码（或其他类似代码）经常出现在很多网站中，但都没有正确使用能力检测：
+
+```
+// 不要这样做！不够特殊
+let isFirefox = !!(navigator.vendor && navigator.vendorSub); 
+
+// 不要这样做！假设太多
+let isIE = !!(document.all && document.uniqueID);
+```
+
+​		这是错误使用能力检测的典型示例。过去，Firefox 可以通过 navigator.vendor 和 navigator. vendorSub 来检测，但后来 Safari 也实现了同样的属性，于是这段代码就会产生误报。为确定 IE，这段代码检测了 document.all 和 document.uniqueID。这是假设 IE 将来的版本中还会继续存在这两个属性，而且其他浏览器也不会实现它们。不过这两个检测都使用双重否定操作符来产生布尔值（这样可以生成便于存储和访问的结果）。
+
+**注意** 
+
+​		**能力检测最适合用于决定下一步该怎么做，而不一定能够作为辨识浏览器的标志。**
+
+
+
+
+
+### 2.用户代理检测
+
+​		用户代理检测通过浏览器的用户代理字符串确定使用的是什么浏览器。用户代理字符串包含在每个HTTP 请求的头部，在 JavaScript 中可以通过 navigator.userAgent 访问。在服务器端，常见的做法是根据接收到的用户代理字符串确定浏览器并执行相应操作。而在客户端，用户代理检测被认为是不可靠的，只应该在没有其他选项时再考虑。
+
+​		用户代理字符串最受争议的地方就是，在很长一段时间里，浏览器都通过在用户代理字符串包含错误或误导性信息来欺骗服务器。
+
+
+
+#### 1 用户代理的历史
+
+​		HTTP 规范（1.0 和 1.1）要求浏览器应该向服务器发送包含浏览器名称和版本信息的简短字符串。
+
+
+
+##### （1）早期的浏览器
+
+​		美国国家超级计算应用中心（NCSA，National Center for Supercomputing Applications）发布于 1993年的 Mosaic 是早期 Web 浏览器的代表，其用户代理字符串相当简单，类似于：		Mosaic/0.9
+
+​		虽然在不同操作系统和平台中可能会有所不同，但基本形式都是这么简单直接。斜杠前是产品名称（有时候可能是“NCSA Mosaic”之类的），斜杠后是产品版本。
+
+​		在网景公司准备开发浏览器时，代号确定为“Mozilla”（Mosaic Killer 的简写）。第一个公开发行版 Netscape Navigator 2 的用户代理字符串是这样的：	**Mozilla/*Version* [*Language*] (Platform;  Encryption)** 
+
+网景公司遵守了将产品名称和版本作为用户代理字符串的规定，但又在后面添加了如下信息：
+
+ Language：语言代码，表示浏览器的目标使用语言。
+
+ Platform：表示浏览器所在的操作系统和/或平台。
+
+ Encryption：包含的安全加密类型，可能的值是 U（128 位加密）、I（40 位加密）和 N（无加密）。
+
+
+
+​		**Netscape Navigator 2 的典型用户代理字符串如下所示：Mozilla/2.02 [fr] (WinNT; I)** 
+
+这个字符串表示 Netscape Navigator 2.02，在主要使用法语地区的发行，运行在 Windows NT 上，40 位加密。总体上看，通过产品名称还是很容易知道这是什么浏览器的。
+
+
+
+##### （2） Netscape Navigator 3 和 IE3 
+
+​		1996 年，Netscape Navigator 3 发布之后超过 Mosaic 成为最受欢迎的浏览器。其用户代理字符串也发生了一些小变化，删除了语言信息，并将操作系统或系统 CPU 信息（OS-or-CPU description）等列为可选信息。格式如下：
+
+```
+Mozilla/Version (Platform; Encryption [; OS-or-CPU description]) 
+
+运行在 Windows 系统上的 Netscape Navigator 3 的典型用户代理字符串如下：
+Mozilla/3.0 (Win95; U)
+```
+
+​		这个字符串表示 Netscape Navigator 3 运行在 Windows 95 上，采用了 128 位加密。注意在 Windows 系统上，没有“OS-or-CPU”部分。
+
+
+
+​		Netscape Navigator 3 发布后不久，微软也首次对外发布了 IE3。这是因为当时 Netscape Navigator 是市场占有率最高的浏览器，很多服务器在返回网页之前都会特意检测其用户代理字符串。如果 IE 因此打不开网页，那么这个当时初出茅庐的浏览器就会遭受重创。为此，IE 就在用户代理字符串中添加了兼容 Netscape 用户代理字符串的内容。
+
+```
+Mozilla/2.0 (compatible; MSIE Version; Operating System) 
+
+比如，Windows 95 平台上的 IE3.02 的用户代理字符串如下：
+Mozilla/2.0 (compatible; MSIE 3.02; Windows 95)
+```
+
+​		当时的大多数浏览器检测程序都只看用户代理字符串中的产品名称，因此 IE 成功地将自己伪装成了 Mozilla，也就是 Netscape Navigator。这个做法引发了一些争议，因为它违反了浏览器标识的初衷。另外，真正的浏览器版本也跑到了字符串中间。
+
+​		这个字符串中还有一个地方很有意思，即它将自己标识为 Mozilla 2.0 而不是 3.0。3.0 是当时市面上使用最多的版本，按理说使用这个版本更合逻辑。背后的原因至今也没有揭开，不过很可能就是当事人一时大意造成的。
+
+
+
+##### （3）Netscape Communicator 4 和 IE4~8
+
+​		1997 年 8 月，Netscape Communicator 4 发布（这次发布将 Navigator 改成了 Communicator）。Netscape 在这个版本中仍然沿用了上一个版本的格式：
+
+```
+Mozilla/Version (Platform; Encryption [; OS-or-CPU description]) 
+
+比如，Windows 98 上的第 4 版，其用户代理字符串就是这样的：
+Mozilla/4.0 (Win98; I) 
+
+如果发布了补丁，则相应增加版本号，比如下面是 4.79 版的字符串：
+Mozilla/4.79 (Win98; I) 
+
+微软在发布 IE4 时只更新了版本，格式不变：
+Mozilla/4.0 (compatible; MSIE Version; Operating System) 
+
+比如，Windows 98 上运行的 IE4 的字符串如下：
+Mozilla/4.0 (compatible; MSIE 4.0; Windows 98)
+```
+
+
+
+​		更新版本号之后，IE 的版本号跟 Mozilla 的就一致了，识别同为第 4 代的两款浏览器也方便 了。可是，这种版本同步就此打住。在 IE4.5（只针对 Mac）面世时，Mozilla 的版本号还是 4，IE 的版本号却变了：
+
+```
+Mozilla/4.0 (compatible; MSIE 4.5; Mac_PowerPC) 
+
+直到 IE7，Mozilla 的版本号就没有变过，比如：
+Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1) 
+
+IE8 在用户代理字符串中添加了额外的标识“Trident”，就是浏览器渲染引擎的代号。格式变成：
+Mozilla/4.0 (compatible; MSIE Version; Operating System; Trident/TridentVersion) 
+
+比如：
+Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)
+```
+
+
+
+​		这个新增的“Trident”是为了让开发者知道什么时候 IE8 运行兼容模式。在兼容模式下，MSIE 的版本会变成 7，但 Trident 的版本不变：
+
+```
+Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; Trident/4.0)
+```
+
+​		添加这个标识之后，就可以确定浏览器究竟是 IE7（没有“Trident”），还是 IE8 运行在兼容模式。
+
+​		IE9 稍微升级了一下用户代理字符串的格式。Mozilla 的版本增加到了 5.0，Trident 的版本号也增加到了 5.0。IE9 的默认用户代理字符串是这样的：
+
+```
+Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)
+```
+
+​		如果 IE9 运行兼容模式，则会恢复旧版的 Mozilla 和 MSIE 版本号，但 Trident 的版本号还是 5.0。比如，下面就是 IE9 运行在 IE7 兼容模式下的字符串：
+
+```
+Mozilla**/4.0** (compatible; MSIE **7.0**; Windows NT 6.1; Trident/5.0)
+```
+
+​		所有这些改变都是为了让之前的用户代理检测脚本正常运作，同时还能为新脚本提供额外的信息。
+
+
+
+##### （4）Gecko
+
+​		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
