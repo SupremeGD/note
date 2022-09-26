@@ -16807,13 +16807,719 @@ Mozilla**/4.0** (compatible; MSIE **7.0**; Windows NT 6.1; Trident/5.0)
 
 ##### （4）Gecko
 
+​		Gecko 渲染引擎是 Firefox 的核心。Gecko 最初是作为通用 Mozilla 浏览器（即后来的 Netscape 6）的一部分开发的。有一个针对 Netscape 6 的用户代理字符串规范，规定了未来的版本应该如何构造这个字符串。新的格式与之前一直沿用到 4.*x* 版的格式有了很大出入：
+
+```
+Mozilla/MozillaVersion (Platform; Encryption; OS-or-CPU; Language;
+	PrereleaseVersion)Gecko/GeckoVersion
+ 	ApplicationProduct/ApplicationProductVersion
+```
+
+
+
+​		这个复杂的用户代理字符串包含了不少想法。下表列出了其中每一部分的含义。
+
+```
+字 符 串 				是否必需 		说 明
+MozillaVersion 			是 			Mozilla 版本
+Platform 				是 			浏览器所在的平台。可能的值包括 Windows、Mac 和 X11（UNIX XWindows）
+Encryption 				是 			加密能力：U 表示 128 位，I 表示 40 位，N 表示无加密
+OS-or-CPU 				是 			浏览器所在的操作系统或计算机处理器类型。如果是 Windows 平台，则这里是 Windows 的版									   本（如 WinNT、Win95）。如果是 Mac 平台，则这里是 CPU 类型（如 68k、PPC for 										 PowerPC 或 MacIntel）。如果是 X11平台，则这里是通过 uname -sm 命名得到的 UNIX 										操作系统名
+Language 				是 			浏览器的目标使用语言
+Prerelease Version 		否 			最初的设想是 Mozilla预发布版的版本号，现在表示 Gecko 引擎的版本号
+GeckoVersion 			是 			以 yyyymmdd 格式的日期表示的 Gecko 渲染引擎的版本
+ApplicationProduct 		否 			使用 Gecko 的产品名称。可能是 Netscape、Firefox 等
+ApplicationProductVersion 否			ApplicationProduct 的版本，区别于 MozillaVersion 和 GeckoVersion
+```
+
+
+
+​		要更好地理解 Gecko 的用户代理字符串，最好是看几个不同的基于 Gecko 的浏览器返回的字符串。
+
+```
+Windowx XP 上的 Netscape 6.21：
+Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:0.9.4) Gecko/20011128 
+ 	Netscape6/6.2.1 
+ 	
+Linux 上的 SeaMonkey 1.1a：
+Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.8.1b2) Gecko/20060823 SeaMonkey/1.1a 
+
+Windows XP 上的 Firefox 2.0.0.11：
+Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.11) Gecko/20071127 
+ 	Firefox/2.0.0.11 
+ 	
+Mac OS X 上的 Camino 1.5.1：
+Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en; rv:1.8.1.6) Gecko/20070809 
+ 	Camino/1.5.1
+```
+
+​		所有这些字符串都表示使用的是基于 Gecko 的浏览器（只是版本不同）。有时候，相比于知道特定的浏览器，知道是不是基于 Gecko 才更重要。从第一个基于 Gecko 的浏览器发布开始，Mozilla 版本就是 5.0，一直没有变过。以后也不太可能会变。
+
+
+
+​		在 Firefox 4 发布时，Mozilla 简化了用户代理字符串。主要变化包括以下几方面。
+
+ 去掉了语言标记（即前面例子中的"en-US"）。
+
+ 在浏览器使用强加密时去掉加密标记（因为是默认了）。这意味着 I 和 N 还可能出现，但 U 不可
+
+​	能出现了。
+
+ 去掉了 Windows 平台上的平台标记，这是因为跟 OS-or-CPU 部分重复了，否则两个地方都会有
+
+​	Windows。 
+
+ GeckoVersion 固定为"Gecko/20100101"。
+
+
+
+​		下面是 Firefox 4 中用户代理字符串的例子：
+
+```
+Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox 4.0.1 
+```
+
+
+
+##### （5）WebKit
+
+​		2003 年，苹果宣布将发布自己的浏览器 Safari。Safari 的渲染引擎叫 WebKit，是基于 Linux 平台浏览器 Konqueror 使用的渲染引擎 KHTML 开发的。
+
+​		这个新浏览器和渲染引擎的开发者也面临与当初 IE3.0 时代同样的问题：怎样才能保证浏览器不被排除在流行的站点之外。答案就是在用户代理字符串中添加足够多的信息，让网站知道这个浏览器与其他浏览器是兼容的。于是 Safari 就有了下面这样的用户代理字符串：
+
+```
+Mozilla/5.0 (Platform; Encryption; OS-or-CPU; Language)
+ 	AppleWebKit/AppleWebKitVersion (KHTML, like Gecko) Safari/SafariVersion
+```
+
+​		下面是一个实际的例子：
+
+```
+Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en) AppleWebKit/124 (KHTML, like Gecko) 
+	Safari/125.1
+```
+
+​		这个字符串也很长，不仅包括苹果 WebKit 的版本，也包含 Safari 的版本。一开始还有是否需要将浏览器标识为 Mozilla 的争论，但考虑到兼容性很快就达成了一致。
+
+​		苹果的回应与微软当初 IE 遭受质疑时一样：Safari 与 Mozilla 兼容，不能让网站以为用户使用了不受支持的浏览器而把 Safari 排斥在外。
+
+​		Safari 的用户代理字符串在第 3 版时有所改进。下面的版本标记现在用来表示 Safari 实际的版本号：
+
+Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en) AppleWebKit/522.15.5 
+
+ 	(KHTML, like Gecko) **Version/3.0.3** Safari/522.15.5 
+
+
+
+​		注意这个变化只针对 Safari 而不包括 WebKit。因此，其他基于 WebKit 的浏览器可能不会有这个变化。**一般来说，与 Gecko 一样，通常识别是不是 WebKit 比识别是不是 Safari 更重要。**
+
+
+
+
+
+##### （6）Konqueror 
+
+​		Konqueror是与 KDE Linux桌面环境打包发布的浏览器，基于开源渲染引擎 KHTML。虽然只有 Linux 平台的版本，Konqueror 的用户却不少。为实现最大化兼容，Konqueror 决定采用 Internet Explore 的用户代理字符串格式：
+
+```
+Mozilla/5.0 (compatible; Konqueror/Version; OS-or-CPU)
+```
+
+​		不过，Konqueror 3.2 为了与 WebKit 就标识为 KHTML 保持一致，也对格式做了一点修改：
+
+```
+Mozilla/5.0 (compatible; Konqueror/Version; OS-or-CPU) KHTML/KHTMLVersion
+ 	(like Gecko) 
+ 	
+下面是一个例子：
+Mozilla/5.0 (compatible; Konqueror/3.5; SunOS) KHTML/3.5.0 (like Gecko)
+```
+
+​		**Konqueror 和 KHTML 的版本号通常是一致的，有时候也只有子版本号不同。比如 Konqueror 是 3.5， 而 KHTML 是 3.5.1。**
+
+
+
+
+
+##### （7） Chrome
+
+​		谷歌的 Chrome 浏览器使用 Blink 作为渲染引擎，使用 V8 作为 JavaScript 引擎。Chrome 的用户代理字符串包含所有 WebKit 的信息，另外又加上了 Chrome 及其版本的信息。其格式如下所示：
+
+```
+Mozilla/5.0 (Platform; Encryption; OS-or-CPU; Language) 
+ 	AppleWebKit/AppleWebKitVersion (KHTML, like Gecko) 
+ 	Chrome/ChromeVersion Safari/SafariVersion
+ 	
+ 	
+以下是 Chrome 7 完整的用户代理字符串：
+Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US) AppleWebKit/534.7 
+ 	(KHTML, like Gecko) Chrome/7.0.517.44 Safari/534.7
+```
+
+**其中的 Safari 版本和 WebKit 版本有可能始终保持一致，但也不能肯定。**
+
+
+
+
+
+##### （8）Opera
+
+​		在用户代理字符串方面引发争议最大的一个浏览器就是 Opera。Opera 默认的用户代理字符串是所有现代浏览器中最符合逻辑的，因为它正确标识了自己和版本。在 Opera 8 之前，其用户代理字符串都是这个格式：
+
+```
+Opera/Version (OS-or-CPU; Encryption) [Language] 
+
+比如，Windows XP 上的 Opera 7.54 的字符串是这样的：
+Opera/7.54 (Windows NT 5.1; U) [en]
+```
+
+
+
+​		Opera 8 发布后，语言标记从括号外挪到了括号内，目的是与其他浏览器保持一致：
+
+```
+Opera/Version (OS-or-CPU; Encryption; Language) 
+
+Windows XP 上的 Opera 8 的字符串是这样的：
+Opera/8.0 (Windows NT 5.1; U; en)
+```
+
+​		默认情况下，Opera 会返回这个简单的用户代理字符串。这是唯一一个使用产品名称和版本完全标识自身的主流浏览器。不过，与其他浏览器一样，Opera 也遇到了使用这种字符串的问题。虽然从技术角度看这是正确的，但网上已经有了很多浏览器检测代码只考虑 Mozilla 这个产品名称。还有不少代码专门针对 IE 或 Gecko。为了不让这些检测代码判断错误，Opera 坚持使用唯一标识自身的字符串。
+
+​		从 Opera 9 开始，Opera 也采用了两个策略改变自己的字符串。一是把自己标识为别的浏览器，如 Firefox 或 IE。这时候的字符串跟 Firefox 和 IE 的一样，只不过末尾会多一个"Opera"及其版本号。比如：
+
+```
+Mozilla/5.0 (Windows NT 5.1; U; en; rv:1.8.1) Gecko/20061208 Firefox/2.0.0 
+ 	Opera 9.50
+    
+Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; en) Opera 9.50
+```
+
+​		第一个字符串把 Opera 9.5 标识为 Firefox 2，同时保持了 Opera 版本信息。第二个字符串把 Opera 9.5标识为 IE6，也保持了 Opera 版本信息。虽然这些字符串可以通过针对 Firefox 和 IE 的测试，但也可以被识别为 Opera。
+
+​		另一个策略是伪装成 Firefox 或 IE。这种情况下的用户代理字符串与 Firefox 和 IE 返回的一样，末尾也没有"Opera"及其版本信息。这样就根本没办法区分 Opera 与其他浏览器了。更严重的是，Opera 还会根据访问的网站不同设置不同的用户代理字符串，却不通知用户。比如，导航到 My Yahoo 网站会导致 Opera 将自己伪装成 Firefox。这就导致很难通过用户代理字符串来识别 Opera。
+
+**注意** 
+
+​		**在 Opera 7 之前的版本中，Opera 可以解析 Windows 操作系统字符串的含义。比如，Windows NT 5.1 实际上表示 Windows XP。因此 Opera 6 的用户代理字符串中会包含 Windows XP 而不是 Windows NT 5.1。为了与其他浏览器表现更一致，Opera 7 及后来的版本就改为使用官方报告的操作系统字符串，而不是自己转换的了。**
+
+
+
+​		Opera 10 又修改了字符串格式，变成了下面这样：
+
+```
+Opera/9.80 (OS-or-CPU; Encryption; Language) Presto/PrestoVersion Version/Version
+```
+
+​		注意开头的版本号 Opera/9.80 是固定不变的。Opera 没有 9.8 这个版本，但 Opera 工程师担心某些浏览器检测脚本会错误地把 Opera/10.0 当成 Opera 1 而不是 Opera 10。因此，Opera 10 新增了额外的Presto 标识（Presto 是 Opera 的渲染引擎）和版本标识。比如，下面是 Windows 7 上的 Opera 10.63 的字符串：
+
+```
+Opera/9.80 (Windows NT 6.1; U; en) Presto/2.6.30 Version/10.63
+```
+
+
+
+​		Opera 最近的版本已经改为在更标准的字符串末尾追加"OPR"标识符和版本号。这样，除了末尾的"OPR"标识符和版本号，字符串的其他部分与 WebKit 浏览器是类似的。下面就是 Windows 10 上的 Opera 52 的用户代理字符串：
+
+```
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) 
+Chrome/65.0.3325.181 Safari/537.36  OPR/52.0.2871.64
+```
+
+
+
+
+
+##### （9） iOS 与 Android
+
+​		iOS 和 Android 移动操作系统上默认的浏览器都是基于 WebKit 的，因此具有与相应桌面浏览器一样的用户代理字符串。iOS 设备遵循以下基本格式：
+
+```
+Mozilla/5.0 (Platform; Encryption; OS-or-CPU like Mac OS X; Language)
+ 	AppleWebKit/AppleWebKitVersion (KHTML, like Gecko) Version/BrowserVersion
+ 	Mobile/MobileVersion Safari/SafariVersion
+```
+
+
+
+​		注意其中用于辅助判断 Mac 操作系统的"like Mac OS X"和"Mobile"相关的标识。这里的 Mobile标识除了说明这是移动 WebKit 之外并没有什么用。平台可能是"iPhone"、"iPod"或"iPad"，因设备而异。例如：
+
+```
+Mozilla/5.0 (iPhone; U; CPU iPhone OS 3_0 like Mac OS X; en-us) 
+ 	AppleWebKit/528.18 (KHTML, like Gecko) Version/4.0 Mobile/7A341 Safari/528.16
+```
+
+注意在 iOS 3 以前，操作系统的版本号不会出现在用户代理字符串中。
+
 ​		
 
+​		默认的Android浏览器通常与iOS上的浏览器格式相同，只是没有Mobile 后面的版本号（"Mobile" 标识还有）。例如：
+
+```
+Mozilla/5.0 (Linux; U; Android 2.2; en-us; Nexus One Build/FRF91) 
+ 	AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1
+```
+
+​		**这个用户代理字符串是谷歌 Nexus One 手机上的默认浏览器的。不过，其他 Android 设备上的浏览器也遵循相同的模式。**
+
+
+
+#### 2 浏览器分析
+
+​		想要知道自己代码运行在什么浏览器上，大部分开发者会分析 window.navigator.userAgent 返回的字符串值。所有浏览器都会提供这个值，如果相信这些返回值并基于给定的一组浏览器检测这个字符串，最终会得到关于浏览器和操作系统的比较精确的结果。
+
+​		相比于能力检测，用户代理检测还是有一定优势的。能力检测可以保证脚本不必理会浏览器而正常执行。现代浏览器用户代理字符串的过去、现在和未来格式都是有章可循的，我们能够利用它们准确识别浏览器。
+
+​	
+
+##### （1）伪造用户代理
+
+​		通过检测用户代理来识别浏览器并不是完美的方式，毕竟这个字符串是可以造假的。只不过实现 window.navigator 对象的浏览器（即所有现代浏览器）都会提供 userAgent 这个只读属性。因此，简单地给这个属性设置其他值不会有效：
+
+```
+console.log(window.navigator.userAgent); 
+// Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) 
+Chrome/65.0.3325.181 Safari/537.36 
+
+window.navigator.userAgent = 'foobar'; 
+
+console.log(window.navigator.userAgent); 
+// Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) 
+Chrome/65.0.3325.181 Safari/537.36
+```
+
+
+
+​		不过，通过简单的办法可以绕过这个限制。比如，有些浏览器提供伪私有的__defineGetter__方法，利用它可以篡改用户代理字符串：
+
+```
+console.log(window.navigator.userAgent); 
+// Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) 
+Chrome/65.0.3325.181 Safari/537.36 
+
+window.navigator.__defineGetter__('userAgent', () => 'foobar'); 
+console.log(window.navigator.userAgent); 
+// foobar
+```
+
+​		对付这种造假是一件吃力不讨好的事。检测用户代理是否以这种方式被篡改过是可能的，但总体来看还是一场猫捉老鼠的游戏。
+
+​		与其劳心费力检测造假，不如更好地专注于浏览器识别。如果相信浏览器返回的用户代理字符串，那就可以用它来判断浏览器。如果怀疑脚本或浏览器可能篡改这个值，那最好还是使用能力检测。
 
 
 
 
 
+##### （2）分析浏览器
+
+​		通过解析浏览器返回的用户代理字符串，可以极其准确地推断出下列相关的环境信息：
+
+ 浏览器
+
+ 浏览器版本
+
+ 浏览器渲染引擎
+
+ 设备类型（桌面/移动）
+
+ 设备生产商
+
+ 设备型号
+
+ 操作系统
+
+ 操作系统版本
+
+
+
+​		当然，新浏览器、新操作系统和新硬件设备随时可能出现，其中很多可能有着类似但并不相同的用户代理字符串。因此，用户代理解析程序需要与时俱进，频繁更新，以免落伍。自己手写的解析程序如果不及时更新或修订，很容易就过时了。本书上一版写过一个用户代理解析程序，但这一版并不推荐读者自己从头再写一个。相反，这里推荐一些 GitHub 上维护比较频繁的第三方用户代理解析程序：
+
+ Bowser 
+
+ UAParser.js 
+
+ Platform.js 
+
+ CURRENT-DEVICE 
+
+ Google Closure 
+
+ Mootools
+
+
+
+### 3.软件与硬件检测
+
+​		现代浏览器提供了一组与页面执行环境相关的信息，包括浏览器、操作系统、硬件和周边设备信息。这些属性可以通过暴露在 window.navigator 上的一组 API 获得。不过，这些 API 的跨浏览器支持还不够好，远未达到标准化的程度。
+
+**注意** 
+
+​		**强烈建议在使用这些 API 之前先检测它们是否存在，因为其中多数都不是强制性的，且很多浏览器没有支持。另外，本节介绍的特性有时候不一定可靠。**
+
+
+
+#### 1 识别浏览器与操作系统
+
+​		特性检测和用户代理字符串解析是当前常用的两种识别浏览器的方式。而 navigator 和 screen 对象也提供了关于页面所在软件环境的信息。
+
+
+
+##### （1） navigator.oscpu
+
+​		navigator.oscpu 属性是一个字符串，通常对应用户代理字符串中操作系统/系统架构相关信息。根据 HTML 实时标准：
+
+```
+oscpu 属性的获取方法必须返回空字符串或者表示浏览器所在平台的字符串，比如"Windows NT 10.0; Win64; x64"或"Linux x86_64"。
+	
+	
+比如，Windows 10 上的 Firefox 的 oscpu 属性应该对应于以下加粗的部分：
+console.log(navigator.userAgent); 
+"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:58.0) Gecko/20100101 Firefox/58.0" 
+console.log(navigator.oscpu); 
+"Windows NT 10.0; Win64; x64"
+```
+
+
+
+##### （2）navigator.vendor
+
+​		navigator.vendor 属性是一个字符串，通常包含浏览器开发商信息。返回这个字符串是浏览器 navigator 兼容模式的一个功能。根据 HTML 实时标准：
+
+```
+navigator.vendor 返回一个空字符串，也可能返回字符串"Apple Computer, Inc."或字符串"Google Inc."。
+
+例如，Chrome 中的这个 navigator.vendor 属性返回下面的字符串：
+console.log(navigator.vendor); // "Google Inc."
+```
+
+
+
+##### （3）navigator.platform
+
+​		navigator.platform 属性是一个字符串，通常表示浏览器所在的操作系统。根据 HTML 实时标准： navigator.platform 必须返回一个字符串或表示浏览器所在平台的字符串，例如"MacIntel"、"Win32"、"FreeBSD i386"或"WebTV OS"。
+
+```
+例如，Windows 系统下 Chrome 中的这个 navigator.platform 属性返回下面的字符串：
+console.log(navigator.platform); // "Win32"
+```
+
+
+
+##### （4）screen.colorDepth 和 screen.pixelDepth
+
+​		screen.colorDepth 和 screen.pixelDepth 返回一样的值，即显示器每像素颜色的位深。根据 CSS 对象模型（CSSOM）规范：
+
+screen.colorDepth 和 screen.pixelDepth 属性应该返回输出设备中每像素用于显示颜色的位数，不包含 alpha 通道。
+
+```
+Chrome 中这两个属性的值如下所示：
+console.log(screen.colorDepth); // 24 
+console.log(screen.pixelDepth); // 24
+```
+
+
+
+##### （5）screen.orientation
+
+​		screen.orientation 属性返回一个 ScreenOrientation 对象，其中包含 Screen Orientation API 定义的屏幕信息。这里面最有意思的属性是 angle 和 type，前者返回相对于默认状态下屏幕的角度，后者返回以下 4 种枚举值之一：
+
+​		 portrait-primary
+
+​		 portrait-secondary
+
+​		 landscape-primary
+
+​		 landscape-secondary
+
+​		例如，在 Chrome 移动版中，screen.orientation 返回的信息如下：
+
+```
+// 垂直看
+console.log(screen.orientation.type); // portrait-primary 
+console.log(screen.orientation.angle); // 0 
+
+// 向左转
+console.log(screen.orientation.type); // landscape-primary 
+console.log(screen.orientation.angle); // 90 
+
+// 向右转
+console.log(screen.orientation.type); // landscape-secondary 
+console.log(screen.orientation.angle); // 270
+```
+
+​		**根据规范，这些值的初始化取决于浏览器和设备状态。因此，不能假设 portrait-primary 和 0 始终是初始值。这两个值主要用于确定设备旋转后浏览器的朝向变化。**
+
+
+
+
+
+#### 2 浏览器元数据
+
+​		navigator 对象暴露出一些 API，可以提供浏览器和操作系统的状态信息。
+
+
+
+##### （1）Geolocation API
+
+​		navigator.geolocation 属性暴露了 Geolocation API，可以让浏览器脚本感知当前设备的地理位置。这个 API 只在安全执行环境（通过 HTTPS 获取的脚本）中可用。
+
+​		这个 API 可以查询宿主系统并尽可能精确地返回设备的位置信息。根据宿主系统的硬件和配置，返回结果的精度可能不一样。手机 GPS 的坐标系统可能具有极高的精度，而 IP 地址的精度就要差很多。根据 Geolocation API 规范：
+
+地理位置信息的主要来源是 GPS 和 IP 地址、射频识别（RFID）、Wi-Fi 及蓝牙 Mac 地址、GSM/CDMA 蜂窝 ID 以及用户输入等信息。
+
+
+
+**注意** 
+
+​		**浏览器也可能会利用 Google Location Service（Chrome 和 Firefox）等服务确定位置。有时候，你可能会发现自己并没有 GPS，但浏览器给出的坐标却非常精确。浏览器会收集所有可用的无线网络，包括 Wi-Fi 和蜂窝信号。拿到这些信息后，再去查询网络数据库。这样就可以精确地报告出你的设备位置。**
+
+
+
+​		要获取浏览器当前的位置，可以使用 getCurrentPosition()方法。这个方法返回一个 Coordinates 对象，其中包含的信息不一定完全依赖宿主系统的能力：
+
+```
+// getCurrentPosition()会以 position 对象为参数调用传入的回调函数
+navigator.geolocation.getCurrentPosition((position) => p = position); 
+
+
+这个 position 对象中有一个表示查询时间的时间戳，以及包含坐标信息的 Coordinates 对象：
+console.log(p.timestamp); // 1525364883361 
+console.log(p.coords); // Coordinates {...}
+```
+
+​		Coordinates 对象中包含标准格式的经度和纬度，以及以米为单位的精度。精度同样以确定设备位置的机制来判定。
+
+```
+console.log(p.coords.latitude, p.coords.longitude); // 37.4854409, -122.2325506 
+console.log(p.coords.accuracy); 					// 58
+```
+
+
+
+​		Coordinates 对象包含一个 altitude（海拔高度）属性，是相对于 1984 世界大地坐标系（World Geodetic System，1984）地球表面的以米为单位的距离。此外也有一个 altitudeAccuracy 属性，这个精度值单位也是米。为了取得 Coordinates 中包含的这些信息，当前设备必须具备相应的能力（比如 GPS 或高度计）。很多设备因为没有能力测量高度，所以这两个值经常有一个或两个是空的。
+
+```
+console.log(p.coords.altitude); 		// -8.800000190734863 
+console.log(p.coords.altitudeAccuracy); // 200
+```
+
+​		Coordinates 对象包含一个 speed 属性，表示设备每秒移动的速度。还有一个 heading（朝向）属性，表示相对于正北方向移动的角度（0 ≤ heading < 360）。为获取这些信息，当前设备必须具备相应的能力（比如加速计或指南针）。很多设备因为没有能力测量高度，所以这两个值经常有一个是空的，或者两个都是空的。
+
+**注意**
+
+​		**设备不会根据两点的向量来测量速度和朝向。不过，如果可能的话，可以尝试基于两次连续的测量数据得到的向量来手动计算。当然，如果向量的精度不够，那么计算结果的精度肯定也不够。**
+
+
+
+​		**获取浏览器地理位置并不能保证成功。**因此 getCurrentPosition()方法也接收失败回调函数作为第二个参数，这个函数会收到一个 PositionError 对象。在失败的情况下，PositionError 对象中会包含一个 code 属性和一个 message 属性，后者包含对错误的简短描述。code 属性是一个整数，表示以下 3 种错误。
+
+（1） PERMISSION_DENIED：浏览器未被允许访问设备位置。页面第一次尝试访问 Geolocation API 时，浏览器会弹出确认对话框取得			用户授权（每个域分别获取）。如果返回了这个错误码，则要么是用户不同意授权，要么是在不安全的环境下访问了 Geolocation 			API。message 属性还会提供额外信息。
+
+（2） POSITION_UNAVAILABLE：系统无法返回任何位置信息。这个错误码可能代表各种失败原因，但相对来说并不常见，因为只要设			备能上网，就至少可以根据 IP 地址返回一个低精度的坐标。
+
+（3）TIMEOUT：系统不能在超时时间内返回位置信息。关于如何配置超时，会在后面介绍。
+
+```
+// 浏览器会弹出确认对话框请用户允许访问 Geolocation API 
+// 这个例子显示了用户拒绝之后的结果 
+navigator.geolocation.getCurrentPosition( 
+ 	() => {}, 
+ 	(e) => { 
+ 		console.log(e.code); // 1 
+ 		console.log(e.message); // User denied Geolocation 
+ 	} 
+); 
+
+// 这个例子展示了在不安全的上下文中执行代码的结果
+navigator.geolocation.getCurrentPosition( 
+ 	() => {}, 
+ 	(e) => { 
+ 		console.log(e.code); // 1 
+ 		console.log(e.message); // Only secure origins are allowed 
+ 	} 
+);
+```
+
+
+
+​		Geolocation API 位置请求可以使用 PositionOptions 对象来配置，作为第三个参数提供。这个对象支持以下 3 个属性。
+
+**（1）** **enableHighAccuracy：**布尔值，true 表示返回的值应该尽量精确，默认值为 false。默认情况下，设备通常会选择最快、最省电			的方式返回坐标。这通常意味着返回的是不够精确的坐标。比如，在移动设备上，默认位置查询通常只会采用 Wi-Fi 和蜂窝网络的			定位信息。而在 enableHighAccuracy 为 true 的情况下，则会使用设备的 GPS 确定设备位置，并返回这些值的混合结果。使用 			GPS 会更耗时、耗电，因此在使用 enableHighAccuracy 配置时要仔细权衡一下。
+
+**（2）** **timeout：**毫秒，表示在以 TIMEOUT 状态调用错误回调函数之前等待的最长时间。默认值是 0xFFFFFFFF（232 – 1）。0 表示完			全跳过系统调用而立即以 TIMEOUT 调用错误回调函数。
+
+**（3） maximumAge：**毫秒，表示返回坐标的最长有效期，默认值为 0。因为查询设备位置会消耗资源，所以系统通常会缓存坐标并在			下次返回缓存的值（遵从位置缓存失效策略）。系统会计算缓存期，如果 Geolocation API 请求的配置要求比缓存的结果更新，则			系统会重新查询并返回值。0 表示强制系统忽略缓存的值，每次都重新查询。而 Infinity 会阻止系统重新查询，只会返回缓存的			值。JavaScript 可以通过检查 Position 对象的 timestamp 属性值是否重复来判断返回的是不是缓存值。
+
+
+
+
+
+##### （2）Connection State 和 NetworkInformation API
+
+​		浏览器会跟踪网络连接状态并以两种方式暴露这些信息：连接事件和 navigator.onLine 属性。在设备连接到网络时，浏览器会记录这个事实并在 window 对象上触发 online 事件。相应地，当设备断开网络连接后，浏览器会在 window 对象上触发 offline 事件。任何时候，都可以通过 navigator. onLine 属性来确定浏览器的联网状态。这个属性返回一个布尔值，表示浏览器是否联网。
+
+```
+const connectionStateChange = () => console.log(navigator.onLine); 
+window.addEventListener('online', connectionStateChange); 
+window.addEventListener('offline', connectionStateChange); 
+// 设备联网时：
+// true 
+// 设备断网时：
+// false
+```
+
+​		当然，到底怎么才算联网取决于浏览器与系统实现。有些浏览器可能会认为只要连接到局域网就算 “在线”，而不管是否真正接入了互联网。
+
+
+
+​		navigator 对象还暴露了 NetworkInformation API，可以通过 navigator.connection 属性使用。这个 API 提供了一些只读属性，并为连接属性变化事件处理程序定义了一个事件对象。
+
+​		以下是 NetworkInformation API 暴露的属性。
+
+（1）downlink：整数，表示当前设备的带宽（以 Mbit/s 为单位），舍入到最接近的 25kbit/s。这个值可能会根据历史网络吞吐量计		  算，也可能根据连接技术的能力来计算。
+
+（2）downlinkMax：整数，表示当前设备最大的下行带宽（以 Mbit/s 为单位），根据网络的第一跳来确定。因为第一跳不一定反映端		  到端的网络速度，所以这个值只能用作粗略的上限值。
+
+（3）effectiveType：字符串枚举值，表示连接速度和质量。这些值对应不同的蜂窝数据网络连接技术，但也用于分类无线网络。这个值		  有以下 4 种可能。
+
+​				 slow-2g
+
+​						 往返时间 ＞ 2000ms 
+
+​						 下行带宽 ＜ 50kbit/s 
+
+​				 2g
+
+​						 2000ms ＞ 往返时间 ≥ 1400ms 
+
+​						 70kbit/s ＞ 下行带宽 ≥ 50kbit/s 
+
+​				 3g
+
+​						 1400ms ＞ 往返时间 ≥ 270ms 
+
+​						 700kbit/s ＞ 下行带宽 ≥ 70kbit/s 
+
+​				 4g
+
+​						 270ms ＞ 往返时间 ≥ 0ms 
+
+​						 下行带宽 ≥ 700kbit/s 
+
+（4）rtt：毫秒，表示当前网络实际的往返时间，舍入为最接近的 25 毫秒。这个值可能根据历史网络吞吐量计算，也可能根据连接技术		  的能力来计算。
+
+（5）type：字符串枚举值，表示网络连接技术。这个值可能为下列值之一。
+
+​				 bluetooth：蓝牙。
+
+​				 cellular：蜂窝。
+
+​				 ethernet：以太网。
+
+​				 none：无网络连接。相当于 navigator.onLine === false。
+
+​				 mixed：多种网络混合。
+
+​				 other：其他。
+
+​				 unknown：不确定。
+
+​				 wifi：Wi-Fi。 
+
+​				 wimax：WiMAX。
+
+（6）saveData：布尔值，表示用户设备是否启用了“节流”（reduced data）模式。
+
+（7）onchange：事件处理程序，会在任何连接状态变化时激发一个 change 事件。可以通过 navigator. 	connection.addEventListener('change',changeHandler)或 navigator.connection. onchange = changeHandler 等方式使用。
+
+
+
+##### （3）Battery Status API
+
+​		浏览器可以访问设备电池及充电状态的信息。navigator.getBattery()方法会返回一个期约实例，解决为一个 BatteryManager 对象。
+
+```
+navigator.getBattery().then((b) => console.log(b)); 
+// BatteryManager { ... }
+```
+
+
+
+​		BatteryManager 包含 4 个只读属性，提供了设备电池的相关信息。
+
+ charging：布尔值，表示设备当前是否正接入电源充电。如果设备没有电池，则返回 true。 
+
+ chargingTime：整数，表示预计离电池充满还有多少秒。如果电池已充满或设备没有电池，则返回 0。 
+
+ dischargingTime：整数，表示预计离电量耗尽还有多少秒。如果设备没有电池，则返回 Infinity。 
+
+ level：浮点数，表示电量百分比。电量完全耗尽返回 0.0，电池充满返回 1.0。如果设备没有电池，则返回 1.0。这个 API 还提供了 4 个	事件属性，可用于设置在相应的电池事件发生时调用的回调函数。可以通过给 BatteryManager 添加事件监听器，也可以通过给事件属	性赋值来使用这些属性。
+
+ onchargingchange
+
+ onchargingtimechange
+
+ ondischargingtimechange
+
+ onlevelchange
+
+
+
+
+
+#### 3 硬件
+
+​		浏览器检测硬件的能力相当有限。不过，navigator 对象还是通过一些属性提供了基本信息。
+
+##### （1）处理器核心数
+
+​		navigator.hardwareConcurrency 属性返回浏览器支持的逻辑处理器核心数量，包含表示核心数的一个整数值（如果核心数无法确定，这个值就是 1）。关键在于，这个值表示浏览器可以并行执行的最大工作线程数量，不一定是实际的 CPU 核心数。
+
+##### （2）设备内存大小
+
+​		navigator.deviceMemory 属性返回设备大致的系统内存大小，包含单位为 GB 的浮点数（舍入为最接近的 2 的幂：512MB 返回 0.5，4GB 返回 4）
+
+##### （3）最大触点数
+
+​		navigator.maxTouchPoints 属性返回触摸屏支持的最大关联触点数量，包含一个整数值。
+
+
+
+
+
+### 4.小结
+
+​		不同浏览器之间存在差异，所以经常需要根据浏览器的能力来编写不同的代码。客户端检测有不少方式，但下面两种用得最多。
+
+**（1） 能力检测**，在使用之前先测试浏览器的特定能力。例如，脚本可以在调用某个函数之前先检查它是否存在。这种客户端检测方式可以让开发者不必考虑特定的浏览器或版本，而只需关注某些能力是否存在。能力检测不能精确地反映特定的浏览器或版本。
+
+**（2） 用户代理检测**，通过用户代理字符串确定浏览器。用户代理字符串包含关于浏览器的很多信息，通常包括浏览器、平台、操作系统和浏览器版本。用户代理字符串有一个相当长的发展史，很多浏览器都试图欺骗网站相信自己是别的浏览器。用户代理检测也比较麻烦，特别是涉及 Opera 会在代理字符串中隐藏自己信息的时候。即使如此，用户代理字符串也可以用来确定浏览器使用的渲染引擎以及平台，包括移动设备和游戏机。
+
+
+
+​		浏览器也提供了一些软件和硬件相关的信息。这些信息通过 screen 和 navigator 对象暴露出来。利用这些 API，可以获取关于操作系统、浏览器、硬件、设备位置、电池状态等方面的准确信息。
+
+
+
+
+
+## 第14章 BOM
+
+​		文档对象模型（DOM，Document Object Model）是 HTML 和 XML 文档的编程接口。DOM 表示由多层节点构成的文档，通过它开发者可以添加、删除和修改页面的各个部分。脱胎于网景和微软早期的动态 HTML（DHTML，Dynamic HTML），DOM 现在是真正跨平台、语言无关的表示和操作网页的方式。
+
+​		DOM Level 1 在 1998 年成为 W3C 推荐标准，提供了基本文档结构和查询的接口。
+
+
+
+### 1.节点层级
+
+​		任何 HTML 或 XML 文档都可以用 DOM 表示为一个由节点构成的层级结构。节点分很多类型，每种类型对应着文档中不同的信息和（或）标记，也都有自己不同的特性、数据和方法，而且与其他类型有某种关系。这些关系构成了层级，让标记可以表示为一个以特定节点为根的树形结构。以下 HTML 为例。
+
+```
+<body> 
+ 	<p>Hello World!</p> 
+</body>
+```
 
 
 
